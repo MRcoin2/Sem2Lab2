@@ -22,6 +22,14 @@ Matrix *create_matrix(int rows, int cols) {
     return matrix;
 }
 
+void free_matrix(Matrix *matrix) {
+    for (int i = 0; i < matrix->rows; i++) {
+        free(matrix->data[i]);
+    }
+    free(matrix->data);
+    free(matrix);
+}
+
 // multiply two matrices
 void matrix_multiply(Matrix *m1, Matrix *m2, Matrix *result) {
     if (m1->cols != m2->rows) {
@@ -75,21 +83,39 @@ Matrix matrix_transpose(Matrix *matrix) {
 }
 
 //add a number to a matrix
-void matrix_add_number(Matrix *matrix, double number) {
+void matrix_add_scalar(Matrix *matrix, double scalar, Matrix *result) {
     for (int i = 0; i < matrix->rows; i++) {
         for (int j = 0; j < matrix->cols; j++) {
-            matrix->data[i][j] += number;
+            result->data[i][j] += scalar;
         }
     }
 }
 
 // apply function to each element of matrix
-void matrix_apply_function(Matrix *matrix, double (*function)(double)) {
+void matrix_apply_function(Matrix *matrix, double (*function)(double), Matrix *result) {
     for (int i = 0; i < matrix->rows; i++) {
         for (int j = 0; j < matrix->cols; j++) {
-            matrix->data[i][j] = function(matrix->data[i][j]);
+            result->data[i][j] = function(matrix->data[i][j]);
         }
     }
+}
+
+void print_matrix(Matrix *matrix) {
+    printf("[");
+    for (int i = 0; i < matrix->rows; i++) {
+        printf("[");
+        for (int j = 0; j < matrix->cols; j++) {
+            printf("%f", matrix->data[i][j]);
+            if (j < matrix->cols - 1) {
+                printf(", ");
+            }
+        }
+        printf("]");
+        if (i < matrix->rows - 1) {
+            printf(",\n");
+        }
+    }
+    printf("]\n");
 }
 
 struct TrainingDataPacket {
@@ -148,8 +174,7 @@ double dReLU(double x) {
 }
 
 //normalized softmax function for the output layer
-Matrix *softmax(Matrix *matrix) {
-    Matrix *result = create_matrix(matrix->rows, matrix->cols);
+void *softmax(Matrix *matrix, Matrix *result) {
 
     //calculate sum for normalization
     double sum = 0;
@@ -161,7 +186,6 @@ Matrix *softmax(Matrix *matrix) {
     for (int i = 0; i < matrix->rows; i++) {
         result->data[i][0] = exp(matrix->data[i][0]) / sum;
     }
-    return result;
 }
 
 // fill matrix with random values
@@ -173,9 +197,10 @@ void randomize_matrix(Matrix *matrix) {
     }
 }
 
-struct Hidden_layer {
+struct Layer {
     int index;
     int input_size;
+    int layer_size;
     int output_size;
     Matrix *input;
     Matrix *output;
@@ -183,54 +208,98 @@ struct Hidden_layer {
     double bias;
     Matrix *weighted_sums;
     Matrix *activations;
-} typedef Hidden_layer;
+} typedef Layer;
 
 // define network struct
 struct network {
-    Matrix *input_layer;
-    Matrix *weights1;
-    Matrix *hidden_layer1;
-    Matrix *weights2;
-    Matrix *hidden_layer2;
-    Matrix *weights3;
-    Matrix *output_layer;
-    Matrix *bias;
+    Layer **layers;
+    int number_of_layers;
 } typedef Network;
 
 // create network
-Network *create_network() {
+Network *create_network(int number_of_layers, int *layer_sizes) {
+    // allocate memory for network
     Network *network = malloc(sizeof(Network));
-    network->input_layer = create_matrix(3, 1);
 
-    network->weights1 = create_matrix(5, 3);
-    network->hidden_layer1 = create_matrix(5, 1);
+    network->number_of_layers = number_of_layers;
+    // allocate memory for layers
+    network->layers = malloc(number_of_layers * sizeof(Layer *));
+    // create layers
+    for (int i = 0; i < number_of_layers; i++) {
+        network->layers[i] = malloc(sizeof(Layer));
+        network->layers[i]->index = i;
+        network->layers[i]->layer_size = layer_sizes[i];
+        if (i == 0) {//input layer
+            network->layers[i]->input_size = 0;
+        } else {
+            network->layers[i]->input_size = layer_sizes[i - 1];
+        }
+        if (i == number_of_layers - 1) {//output layer
+            network->layers[i]->output_size = 0;
+        } else { //hidden layers
+            network->layers[i]->output_size = layer_sizes[i + 1];
+        }
+        network->layers[i]->input = create_matrix(network->layers[i]->input_size, 1);
+        network->layers[i]->output = create_matrix(network->layers[i]->output_size, 1);
+        network->layers[i]->weights = create_matrix(network->layers[i]->layer_size, network->layers[i]->input_size);
+        network->layers[i]->weighted_sums = create_matrix(network->layers[i]->layer_size, 1);
+        network->layers[i]->activations = create_matrix(network->layers[i]->layer_size, 1);
 
-    network->weights2 = create_matrix(20, 5);
-    network->hidden_layer2 = create_matrix(20, 1);
+        //randomize weights
+        randomize_matrix(network->layers[i]->weights);
 
-    network->weights3 = create_matrix(16, 20);
-    network->output_layer = create_matrix(16, 1);
+        //initialize bias
+        network->layers[i]->bias = 0;
+    }
 
-    network->bias = create_matrix(3, 1);
     return network;
 }
 
-Matrix propagate_forward(Network *network) {
-    matrix_multiply(network->weights1, network->input_layer, network->hidden_layer1);
 
-    matrix_add_number(network->hidden_layer1, network->bias->data[0][0]);
-    matrix_apply_function(network->hidden_layer1, ReLU);
+// propagate forward through the network
+void propagate_forward(Network *network) {
+    for (int i = 0; i < network->number_of_layers - 1; i++) {
+        //calculate weighted sums
+        matrix_multiply(network->layers[i]->weights, network->layers[i]->input, network->layers[i]->weighted_sums);
+        //add bias
+        matrix_add_scalar(network->layers[i]->weighted_sums, network->layers[i]->bias,
+                          network->layers[i]->weighted_sums);
 
-    matrix_multiply(network->weights2, network->hidden_layer1, network->hidden_layer2);
-    matrix_add_number(network->hidden_layer1, network->bias->data[1][0]);
-    matrix_apply_function(network->hidden_layer2, ReLU);
+        //calculate activations
+        matrix_apply_function(network->layers[i]->weighted_sums, ReLU, network->layers[i]->activations);
+        //set activations as input for next layer
+        network->layers[i + 1]->input = network->layers[i]->activations;
+    }
+    //calculate output layer weighted sums
+    matrix_multiply(network->layers[network->number_of_layers - 1]->weights,
+                    network->layers[network->number_of_layers - 1]->input,
+                    network->layers[network->number_of_layers - 1]->weighted_sums);
+    //add bias
+    matrix_add_scalar(network->layers[network->number_of_layers - 1]->weighted_sums,
+                      network->layers[network->number_of_layers - 1]->bias,
+                      network->layers[network->number_of_layers - 1]->weighted_sums);
+    //apply softmax
+    softmax(network->layers[network->number_of_layers - 1]->weighted_sums,
+            network->layers[network->number_of_layers - 1]->activations);
+}
 
-    matrix_multiply(network->weights3, network->hidden_layer2, network->output_layer);
-    matrix_add_number(network->hidden_layer1, network->bias->data[2][0]);
-
-    network->output_layer = softmax(network->output_layer);
-
-    return *network->output_layer;
+// print the entire structure of the network
+void print_network(Network *network) {
+    for (int i = 0; i < network->number_of_layers; i++) {
+        printf("Layer %d\n", i);
+        printf("Input size: %d\n", network->layers[i]->input_size);
+        printf("Layer size: %d\n", network->layers[i]->layer_size);
+        printf("Output size: %d\n", network->layers[i]->output_size);
+        printf("Input:\n");
+        print_matrix(network->layers[i]->input);
+        printf("Weights:\n");
+        print_matrix(network->layers[i]->weights);
+        printf("Weighted sums:\n");
+        print_matrix(network->layers[i]->weighted_sums);
+        printf("Activations:\n");
+        print_matrix(network->layers[i]->activations);
+        printf("\n");
+    }
 }
 
 double calculate_loss(Matrix *output_layer, Matrix *target) {
@@ -241,50 +310,35 @@ double calculate_loss(Matrix *output_layer, Matrix *target) {
     return loss;
 }
 
-Matrix propagate_backward(Network *network) {
-    //TODO implement backpropagation
-
-}
-
-double calculate_average_loss(Network *network, TrainingDataPacket **training_data, int lenght_of_training_data) {
+double calculate_average_loss(Network *network, TrainingDataPacket **training_data, int length_of_training_data) {
     double loss = 0;
-    for (int j = 0; j < lenght_of_training_data; j++) {
-        network->input_layer = training_data[j]->input;
-        propagate_forward(network);
-        loss += calculate_loss(network->output_layer, training_data[j]->target);
-    }
-    return loss / lenght_of_training_data;
-}
+    for (int j = 0; j < length_of_training_data; j++) {
+        //free the empty matrix and assign input to the activations of the input layer
+        free_matrix(network->layers[0]->activations);
+        network->layers[0]->activations = training_data[j]->input;
 
-void train(Network *network, TrainingDataPacket **training_data, int lenght_of_training_data) {
-    for (int j = 0; j < lenght_of_training_data; j++) {
-        network->input_layer = training_data[j]->input;
+        //propagate forward
         propagate_forward(network);
-        //TODO implement backpropagation
-        //TODO implement weight update
+        loss += calculate_loss(network->layers[network->number_of_layers - 1]->activations, training_data[j]->target);
     }
+    return loss / length_of_training_data;
 }
 
 int main() {
-    Network *network = create_network();
-
-    //weights
-    randomize_matrix(network->weights1);
-    randomize_matrix(network->weights2);
-    randomize_matrix(network->weights3);
-
-    //bias
-    randomize_matrix(network->bias);
+    Network *network = create_network(4, (int[]) {3, 5, 20, 16});
 
     TrainingDataPacket **training_data = read_training_data(
             "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",
             250);
     propagate_forward(network);
     double loss = calculate_average_loss(network, training_data, 250);
+
+    print_network(network);
     printf("avg loss: %f\n", loss);
 
     return 0;
 }
+
 
 // 10 neuronów wejściowych
 // rzędy w kalawieturze
