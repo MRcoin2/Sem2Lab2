@@ -52,6 +52,28 @@ void matrix_add(Matrix *m1, Matrix *m2, Matrix *result) {
     }
 }
 
+void matrix_subtract(Matrix *m1, Matrix *m2, Matrix *result) {
+    if (m1->rows != m2->rows || m1->cols != m2->cols) {
+        printf("Error: Matrix dimensions do not match!\n");
+        return;
+    }
+    for (int i = 0; i < m1->rows; i++) {
+        for (int j = 0; j < m1->cols; j++) {
+            result->data[i][j] = m1->data[i][j] - m2->data[i][j];
+        }
+    }
+}
+
+Matrix matrix_transpose(Matrix *matrix) {
+    Matrix *result = create_matrix(matrix->cols, matrix->rows);
+    for (int i = 0; i < matrix->rows; i++) {
+        for (int j = 0; j < matrix->cols; j++) {
+            result->data[j][i] = matrix->data[i][j];
+        }
+    }
+    return *result;
+}
+
 //add a number to a matrix
 void matrix_add_number(Matrix *matrix, double number) {
     for (int i = 0; i < matrix->rows; i++) {
@@ -62,7 +84,7 @@ void matrix_add_number(Matrix *matrix, double number) {
 }
 
 // apply function to each element of matrix
-void apply_function(Matrix *matrix, double (*function)(float)) {
+void matrix_apply_function(Matrix *matrix, double (*function)(double)) {
     for (int i = 0; i < matrix->rows; i++) {
         for (int j = 0; j < matrix->cols; j++) {
             matrix->data[i][j] = function(matrix->data[i][j]);
@@ -113,9 +135,17 @@ TrainingDataPacket **read_training_data(char file_name[], int lenght_of_training
 }
 
 // ReLU activation function
-double ReLU(float x) {
+double ReLU(double x) {
     return fmax(0, x);
 };
+
+double dReLU(double x) {
+    if (x > 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
 
 //normalized softmax function for the output layer
 Matrix *softmax(Matrix *matrix) {
@@ -142,6 +172,18 @@ void randomize_matrix(Matrix *matrix) {
         }
     }
 }
+
+struct Hidden_layer {
+    int index;
+    int input_size;
+    int output_size;
+    Matrix *input;
+    Matrix *output;
+    Matrix *weights;
+    double bias;
+    Matrix *weighted_sums;
+    Matrix *activations;
+} typedef Hidden_layer;
 
 // define network struct
 struct network {
@@ -173,15 +215,15 @@ Network *create_network() {
     return network;
 }
 
-//add bias vectors
 Matrix propagate_forward(Network *network) {
     matrix_multiply(network->weights1, network->input_layer, network->hidden_layer1);
+
     matrix_add_number(network->hidden_layer1, network->bias->data[0][0]);
-    apply_function(network->hidden_layer1, ReLU);
+    matrix_apply_function(network->hidden_layer1, ReLU);
 
     matrix_multiply(network->weights2, network->hidden_layer1, network->hidden_layer2);
     matrix_add_number(network->hidden_layer1, network->bias->data[1][0]);
-    apply_function(network->hidden_layer2, ReLU);
+    matrix_apply_function(network->hidden_layer2, ReLU);
 
     matrix_multiply(network->weights3, network->hidden_layer2, network->output_layer);
     matrix_add_number(network->hidden_layer1, network->bias->data[2][0]);
@@ -199,14 +241,29 @@ double calculate_loss(Matrix *output_layer, Matrix *target) {
     return loss;
 }
 
-
-double propagate_backward(Network *network) {
+Matrix propagate_backward(Network *network) {
     //TODO implement backpropagation
-    return 0;
+
 }
 
+double calculate_average_loss(Network *network, TrainingDataPacket **training_data, int lenght_of_training_data) {
+    double loss = 0;
+    for (int j = 0; j < lenght_of_training_data; j++) {
+        network->input_layer = training_data[j]->input;
+        propagate_forward(network);
+        loss += calculate_loss(network->output_layer, training_data[j]->target);
+    }
+    return loss / lenght_of_training_data;
+}
 
-
+void train(Network *network, TrainingDataPacket **training_data, int lenght_of_training_data) {
+    for (int j = 0; j < lenght_of_training_data; j++) {
+        network->input_layer = training_data[j]->input;
+        propagate_forward(network);
+        //TODO implement backpropagation
+        //TODO implement weight update
+    }
+}
 
 int main() {
     Network *network = create_network();
@@ -219,15 +276,12 @@ int main() {
     //bias
     randomize_matrix(network->bias);
 
-    TrainingDataPacket **training_data = read_training_data("C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\training_data.txt", 250);
-    for (int j = 0; j < 250; j++) {
-        network->input_layer = training_data[j]->input;
-        propagate_forward(network);
-        double loss = calculate_loss(network->output_layer, training_data[j]->target);
-        printf("Loss: %f\n", loss);
-
-        propagate_backward(network);
-    }
+    TrainingDataPacket **training_data = read_training_data(
+            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",
+            250);
+    propagate_forward(network);
+    double loss = calculate_average_loss(network, training_data, 250);
+    printf("avg loss: %f\n", loss);
 
     return 0;
 }
