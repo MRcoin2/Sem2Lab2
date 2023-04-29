@@ -52,6 +52,15 @@ void matrix_add(Matrix *m1, Matrix *m2, Matrix *result) {
     }
 }
 
+//add a number to a matrix
+void matrix_add_number(Matrix *matrix, double number) {
+    for (int i = 0; i < matrix->rows; i++) {
+        for (int j = 0; j < matrix->cols; j++) {
+            matrix->data[i][j] += number;
+        }
+    }
+}
+
 // apply function to each element of matrix
 void apply_function(Matrix *matrix, double (*function)(float)) {
     for (int i = 0; i < matrix->rows; i++) {
@@ -59,6 +68,48 @@ void apply_function(Matrix *matrix, double (*function)(float)) {
             matrix->data[i][j] = function(matrix->data[i][j]);
         }
     }
+}
+
+struct TrainingDataPacket {
+    Matrix *input;
+    Matrix *target;
+} typedef TrainingDataPacket;
+
+//create training data
+TrainingDataPacket *create_training_data() {
+    TrainingDataPacket *training_data = malloc(sizeof(TrainingDataPacket));
+    training_data->input = create_matrix(3, 1);
+    training_data->target = create_matrix(16, 1);
+    return training_data;
+}
+
+//read training data to a list of packets from training.txt file
+//template of the file to be read
+// 0.1 0.2 0.3 14
+// 0.4 0.5 0.6 15
+// 0.7 0.8 0.9 12
+// 0.1 0.3 0.3 14
+TrainingDataPacket **read_training_data(char file_name[], int lenght_of_training_data) {
+    FILE *file = fopen(file_name, "r");
+    if (file == NULL) {
+        printf("Error: Could not open file!\n");
+        return NULL;
+    }
+    TrainingDataPacket **training_data = malloc(lenght_of_training_data * sizeof(TrainingDataPacket *));
+    for (int i = 0; i < lenght_of_training_data; i++) {
+        training_data[i] = create_training_data();
+    }
+    for (int i = 0; i < lenght_of_training_data; i++) {
+        fscanf(file, "%lf %lf %lf",
+               &training_data[i]->input->data[0][0],
+               &training_data[i]->input->data[1][0],
+               &training_data[i]->input->data[2][0]);
+        int target_index;
+        fscanf(file, "%d", &target_index);
+        training_data[i]->target->data[target_index][0] = 1;
+    }
+    fclose(file);
+    return training_data;
 }
 
 // ReLU activation function
@@ -97,48 +148,47 @@ struct network {
     Matrix *input_layer;
     Matrix *weights1;
     Matrix *hidden_layer1;
-    Matrix *bias1;
     Matrix *weights2;
     Matrix *hidden_layer2;
-    Matrix *bias2;
     Matrix *weights3;
     Matrix *output_layer;
+    Matrix *bias;
 } typedef Network;
 
 // create network
 Network *create_network() {
     Network *network = malloc(sizeof(Network));
     network->input_layer = create_matrix(3, 1);
-    network->weights1 = create_matrix(16, 3);
-    network->hidden_layer1 = create_matrix(16, 1);
-    network->bias1 = create_matrix(16, 1);
-    network->weights2 = create_matrix(16, 16);
-    network->hidden_layer2 = create_matrix(16, 1);
-    network->bias2 = create_matrix(16, 1);
-    network->weights3 = create_matrix(12, 16);
-    network->output_layer = create_matrix(12, 1);
+
+    network->weights1 = create_matrix(5, 3);
+    network->hidden_layer1 = create_matrix(5, 1);
+
+    network->weights2 = create_matrix(20, 5);
+    network->hidden_layer2 = create_matrix(20, 1);
+
+    network->weights3 = create_matrix(16, 20);
+    network->output_layer = create_matrix(16, 1);
+
+    network->bias = create_matrix(3, 1);
     return network;
 }
 
 //add bias vectors
 Matrix propagate_forward(Network *network) {
-    Matrix *hidden_layer1 = create_matrix(16, 1);
-    Matrix *hidden_layer2 = create_matrix(16, 1);
-    Matrix *output_layer = create_matrix(12, 1);
+    matrix_multiply(network->weights1, network->input_layer, network->hidden_layer1);
+    matrix_add_number(network->hidden_layer1, network->bias->data[0][0]);
+    apply_function(network->hidden_layer1, ReLU);
 
-    matrix_multiply(network->weights1, network->input_layer, hidden_layer1);
-    matrix_add(hidden_layer1, network->bias1, hidden_layer1);
-    apply_function(hidden_layer1, ReLU);
+    matrix_multiply(network->weights2, network->hidden_layer1, network->hidden_layer2);
+    matrix_add_number(network->hidden_layer1, network->bias->data[1][0]);
+    apply_function(network->hidden_layer2, ReLU);
 
-    matrix_multiply(network->weights2, hidden_layer1, hidden_layer2);
-    matrix_add(hidden_layer2, network->bias2, hidden_layer2);
-    apply_function(hidden_layer2, ReLU);
+    matrix_multiply(network->weights3, network->hidden_layer2, network->output_layer);
+    matrix_add_number(network->hidden_layer1, network->bias->data[2][0]);
 
-    matrix_multiply(network->weights3, hidden_layer2, output_layer);
+    network->output_layer = softmax(network->output_layer);
 
-    output_layer = softmax(output_layer);
-
-    return *output_layer;
+    return *network->output_layer;
 }
 
 double calculate_loss(Matrix *output_layer, Matrix *target) {
@@ -167,29 +217,21 @@ int main() {
     randomize_matrix(network->weights3);
 
     //bias
-    randomize_matrix(network->bias1);
-    randomize_matrix(network->bias2);
+    randomize_matrix(network->bias);
 
-    //input data
-    network->input_layer->data[0][0] = 0.1; //R
-    network->input_layer->data[1][0] = 0.2; //G
-    network->input_layer->data[2][0] = 0.3; //B
+    TrainingDataPacket **training_data = read_training_data("C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\training_data.txt", 250);
+    for (int j = 0; j < 250; j++) {
+        network->input_layer = training_data[j]->input;
+        propagate_forward(network);
+        double loss = calculate_loss(network->output_layer, training_data[j]->target);
+        printf("Loss: %f\n", loss);
 
-    //print output layer
-    Matrix out = propagate_forward(network);
-    for (int i = 0; i < 12; i++) {
-        printf("%f\n", out.data[i][0]);
+        propagate_backward(network);
     }
-
-    //print output layer sum
-    double sum = 0;
-    for (int i = 0; i < 12; i++) {
-        sum += out.data[i][0];
-    }
-    printf("Sum: %f\n", sum);
 
     return 0;
 }
+
 // 10 neuronów wejściowych
 // rzędy w kalawieturze
 // połówki alfabetu
