@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 // define matrix struct
 struct Matrix {
@@ -231,16 +232,17 @@ Network *create_network(int number_of_layers, int *layer_sizes) {
         network->layers[i]->layer_size = layer_sizes[i];
         if (i == 0) {//input layer
             network->layers[i]->input_size = 0;
+            network->layers[i]->input = create_matrix(0, 0);
         } else {
             network->layers[i]->input_size = layer_sizes[i - 1];
+            network->layers[i]->input = network->layers[i - 1]->activations;
         }
         if (i == number_of_layers - 1) {//output layer
             network->layers[i]->output_size = 0;
         } else { //hidden layers
             network->layers[i]->output_size = layer_sizes[i + 1];
         }
-        network->layers[i]->input = create_matrix(network->layers[i]->input_size, 1);
-        network->layers[i]->output = create_matrix(network->layers[i]->output_size, 1);
+
         network->layers[i]->weights = create_matrix(network->layers[i]->layer_size, network->layers[i]->input_size);
         network->layers[i]->weighted_sums = create_matrix(network->layers[i]->layer_size, 1);
         network->layers[i]->activations = create_matrix(network->layers[i]->layer_size, 1);
@@ -251,14 +253,14 @@ Network *create_network(int number_of_layers, int *layer_sizes) {
         //initialize bias
         network->layers[i]->bias = 0;
     }
-
     return network;
 }
 
 
 // propagate forward through the network
 void propagate_forward(Network *network) {
-    for (int i = 0; i < network->number_of_layers - 1; i++) {
+    //calculate weighted sums and activations for hidden layers and output layer (exclude input layer i=1)
+    for (int i = 1; i < network->number_of_layers - 1; i++) {
         //calculate weighted sums
         matrix_multiply(network->layers[i]->weights, network->layers[i]->input, network->layers[i]->weighted_sums);
         //add bias
@@ -314,9 +316,9 @@ double calculate_average_loss(Network *network, TrainingDataPacket **training_da
     double loss = 0;
     for (int j = 0; j < length_of_training_data; j++) {
         //free the empty matrix and assign input to the activations of the input layer
-        free_matrix(network->layers[0]->activations);
-        network->layers[0]->activations = training_data[j]->input;
-
+        network->layers[0]->activations->data[0][0] = training_data[j]->input->data[0][0];
+        network->layers[0]->activations->data[1][0] = training_data[j]->input->data[1][0];
+        network->layers[0]->activations->data[2][0] = training_data[j]->input->data[2][0];
         //propagate forward
         propagate_forward(network);
         loss += calculate_loss(network->layers[network->number_of_layers - 1]->activations, training_data[j]->target);
@@ -325,15 +327,23 @@ double calculate_average_loss(Network *network, TrainingDataPacket **training_da
 }
 
 int main() {
+    srand(time(NULL));
     Network *network = create_network(4, (int[]) {3, 5, 20, 16});
 
     TrainingDataPacket **training_data = read_training_data(
             "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",
             250);
-    propagate_forward(network);
-    double loss = calculate_average_loss(network, training_data, 250);
 
+
+    network->layers[0]->activations->data[0][0] = training_data[0]->input->data[0][0];
+    network->layers[0]->activations->data[1][0] = training_data[0]->input->data[1][0];
+    network->layers[0]->activations->data[2][0] = training_data[0]->input->data[2][0];
+    print_matrix(network->layers[0]->activations);
+    propagate_forward(network);
+    print_matrix(network->layers[0]->activations);
     print_network(network);
+
+    double loss = calculate_average_loss(network, training_data, 250);
     printf("avg loss: %f\n", loss);
 
     return 0;
