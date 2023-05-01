@@ -509,7 +509,7 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
             update_biases_for_layer(network, k, learning_rate);
         }
         //calculate average loss every 10 epochs
-        if (i % 100 == 0) {
+        if (i % 10 == 0) {
             double loss = calculate_average_loss(network, training_data, length_of_training_data);
             printf("avg loss: %f\n", loss);
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
@@ -524,13 +524,13 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
 
 int main() {
     srand(time(NULL));
-    Network *network = create_network(4, (int[]) {3, 10, 20, 16});
+    Network *network = create_network(4, (int[]) {3, 20, 20, 16});
 
     TrainingDataPacket **training_data = read_training_data(
             "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",
-            10000);
+            60000);
 
-    train_network(network, training_data, 10000, 10000, 0.2);
+    train_network(network, training_data, 60000, 1000, 0.2);
 
     //user input and print the output
     double input[3];
@@ -549,6 +549,7 @@ int main() {
 
 }
 
+//todo add a way to save trainded weights
 
 // 10 neuronów wejściowych
 // rzędy w kalawieturze
