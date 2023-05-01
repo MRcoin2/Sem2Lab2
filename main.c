@@ -11,14 +11,6 @@ double ReLU(double x) {
     return fmax(0, x);
 };
 
-double dReLU(double x) {
-    if (x > 0) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 //normalized softmax function for the output layer
 void *softmax(Matrix *matrix, Matrix *result) {
 
@@ -187,13 +179,13 @@ double calculate_average_loss(Network *network, TrainingDataPacket **training_da
 }
 
 
-//calculate average success rate of the network on the training values
-double
-calculate_average_success_rate(Network *network, TrainingDataPacket **training_data, int length_of_training_data) {
+// calculate average success rate of the network on the training values
+// by comparing the output to the target and counting the number of correct outputs
+double calculate_average_success_rate(Network *network, TrainingDataPacket **training_data, int length_of_training_data) {
     double success_rate = 0;
     for (int j = 0; j < length_of_training_data; j++) {
-        //propagate forward
         propagate_forward(network, training_data[j]->input);
+
         //check if the output matches the target
         if (vector_max_index(network->layers[network->number_of_layers - 1]->activations) ==
             vector_max_index(training_data[j]->target)) {
@@ -294,6 +286,7 @@ void update_biases_for_layer(Network *network, int layer_index, double learning_
     }
 }
 
+// train the network on the given training data for the given number of epochs
 void train_network(Network *network, TrainingDataPacket **training_data, int length_of_training_data, int epochs,
                    double learning_rate) {
     for (int i = 0; i < epochs; i++) {
@@ -319,6 +312,8 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
                 add_delta_biases_for_layer(network, k);
             }
         }
+
+        //calculate the gradient for all data:
         //average delta weights for output layer
         average_delta_weights_for_layer(network, network->number_of_layers - 1, length_of_training_data);
         //average delta weights for hidden layers
@@ -331,6 +326,8 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
         for (int k = network->number_of_layers - 2; k >= 0; k--) {
             average_delta_biases_for_layer(network, k, length_of_training_data);
         }
+
+        //apply the gradient to the weights and biases:
         //update weights for output layer
         update_weights_for_layer(network, network->number_of_layers - 1, learning_rate);
         //update weights for hidden layers
@@ -343,7 +340,8 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
         for (int k = network->number_of_layers - 2; k >= 0; k--) {
             update_biases_for_layer(network, k, learning_rate);
         }
-        //calculate average loss every 10 epochs
+
+        //calculate average loss and success rate every 10 epochs
         if (i % 10 == 0) {
             double loss = calculate_average_loss(network, training_data, length_of_training_data);
             printf("avg loss: %f\n", loss);
@@ -355,14 +353,18 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
 
 
 int main() {
+    //seed the random number generator
     srand(time(NULL));
 
+    //create the network
     Network *network = create_network(4, (int[]) {3, 10, 20, 16});
 
+    //read the training data
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",
+            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",//TODO fix for when using different training data
             60000);
 
+    //train the network
     train_network(network, training_data, 60000, 100, 0.2);
 
     //get input from user
@@ -378,10 +380,19 @@ int main() {
     printf("index of the largest value: %d\n",
            vector_max_index(network->layers[network->number_of_layers - 1]->activations));
 
+    //free the network
+    free_network(network);
+
+    // free the training data
+    for (int i = 0; i < 60000; i++) {
+        free_matrix(training_data[i]->input);
+        free_matrix(training_data[i]->target);
+        free(training_data[i]);
+    }
+    free(training_data);
     return 0;
 }
 //todo zapisywanie wag i biasów do pliku
-//todo
 
 // 10 neuronów wejściowych
 // rzędy w kalawieturze
