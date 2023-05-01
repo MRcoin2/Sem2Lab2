@@ -214,7 +214,6 @@ struct Layer {
     int layer_size;
     int output_size;
     Matrix *input;
-    Matrix *output;
     Matrix *weights;
     Matrix *delta_weights;
     Matrix *biases;
@@ -413,7 +412,7 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
 void calculate_delta_weights_for_layer(Network *network, int layer_index) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         for (int j = 0; j < network->layers[layer_index]->input_size; j++) {
-            network->layers[layer_index]->delta_weights->data[i][j] =
+            network->layers[layer_index]->delta_weights->data[i][j] +=
                     network->layers[layer_index]->deltas->data[i][0] *
                     network->layers[layer_index]->input->data[j][0];
         }
@@ -422,7 +421,7 @@ void calculate_delta_weights_for_layer(Network *network, int layer_index) {
 
 void calculate_delta_biases_for_layer(Network *network, int layer_index) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
-        network->layers[layer_index]->delta_biases->data[i][0] = network->layers[layer_index]->deltas->data[i][0];
+        network->layers[layer_index]->delta_biases->data[i][0] += network->layers[layer_index]->deltas->data[i][0];
     }
 }
 
@@ -510,7 +509,7 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
             update_biases_for_layer(network, k, learning_rate);
         }
         //calculate average loss every 10 epochs
-        if (i % 10 == 0) {
+        if (i % 100 == 0) {
             double loss = calculate_average_loss(network, training_data, length_of_training_data);
             printf("avg loss: %f\n", loss);
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
@@ -522,12 +521,13 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
 
 
 
+
 int main() {
     srand(time(NULL));
     Network *network = create_network(3, (int[]) {3, 10, 16, 16});
 
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\training_data.txt",
+            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",
             10000);
 
 
@@ -542,7 +542,7 @@ int main() {
 //    double loss = calculate_average_loss(network, training_data, 250);
 //    printf("avg loss: %f\n", loss);
 
-    train_network(network, training_data, 10000, 10000, 0.5);
+    train_network(network, training_data, 10000, 10000, 0.2);
 
     //user input and print the output
     double input[3];
