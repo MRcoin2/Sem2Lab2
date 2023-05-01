@@ -10,6 +10,14 @@ struct Matrix {
     double **data;
 } typedef Matrix;
 
+void fill_matrix(Matrix *matrix, double value) {
+    for (int i = 0; i < matrix->rows; i++) {
+        for (int j = 0; j < matrix->cols; j++) {
+            matrix->data[i][j] = value;
+        }
+    }
+}
+
 // create matrix with given dimensions
 Matrix *create_matrix(int rows, int cols) {
     Matrix *matrix = malloc(sizeof(Matrix));
@@ -20,6 +28,7 @@ Matrix *create_matrix(int rows, int cols) {
     for (int i = 0; i < rows; i++) {
         matrix->data[i] = malloc(cols * sizeof(double));
     }
+    fill_matrix(matrix, 0);
     return matrix;
 }
 
@@ -129,6 +138,7 @@ TrainingDataPacket *create_training_data() {
     TrainingDataPacket *training_data = malloc(sizeof(TrainingDataPacket));
     training_data->input = create_matrix(3, 1);
     training_data->target = create_matrix(16, 1);
+    fill_matrix(training_data->target, 0);
     return training_data;
 }
 
@@ -206,9 +216,12 @@ struct Layer {
     Matrix *input;
     Matrix *output;
     Matrix *weights;
-    double bias;
+    Matrix *delta_weights;
+    Matrix *biases;
+    Matrix *delta_biases;
     Matrix *weighted_sums;
     Matrix *activations;
+    Matrix *deltas; //error of the layer
 } typedef Layer;
 
 // define network struct
@@ -244,14 +257,18 @@ Network *create_network(int number_of_layers, int *layer_sizes) {
         }
 
         network->layers[i]->weights = create_matrix(network->layers[i]->layer_size, network->layers[i]->input_size);
+        network->layers[i]->delta_weights = create_matrix(network->layers[i]->layer_size, network->layers[i]->input_size);
         network->layers[i]->weighted_sums = create_matrix(network->layers[i]->layer_size, 1);
         network->layers[i]->activations = create_matrix(network->layers[i]->layer_size, 1);
+        network->layers[i]->deltas = create_matrix(network->layers[i]->layer_size, 1);
 
         //randomize weights
         randomize_matrix(network->layers[i]->weights);
 
         //initialize bias
-        network->layers[i]->bias = 0;
+        network->layers[i]->biases = create_matrix(network->layers[i]->layer_size, 1);
+        network->layers[i]->delta_biases = create_matrix(network->layers[i]->layer_size, 1);
+        randomize_matrix(network->layers[i]->biases);
     }
     return network;
 }
@@ -264,7 +281,7 @@ void propagate_forward(Network *network) {
         //calculate weighted sums
         matrix_multiply(network->layers[i]->weights, network->layers[i]->input, network->layers[i]->weighted_sums);
         //add bias
-        matrix_add_scalar(network->layers[i]->weighted_sums, network->layers[i]->bias,
+        matrix_add(network->layers[i]->weighted_sums, network->layers[i]->biases,
                           network->layers[i]->weighted_sums);
 
         //calculate activations
@@ -277,8 +294,8 @@ void propagate_forward(Network *network) {
                     network->layers[network->number_of_layers - 1]->input,
                     network->layers[network->number_of_layers - 1]->weighted_sums);
     //add bias
-    matrix_add_scalar(network->layers[network->number_of_layers - 1]->weighted_sums,
-                      network->layers[network->number_of_layers - 1]->bias,
+    matrix_add(network->layers[network->number_of_layers - 1]->weighted_sums,
+                      network->layers[network->number_of_layers - 1]->biases,
                       network->layers[network->number_of_layers - 1]->weighted_sums);
     //apply softmax
     softmax(network->layers[network->number_of_layers - 1]->weighted_sums,
@@ -326,27 +343,222 @@ double calculate_average_loss(Network *network, TrainingDataPacket **training_da
     return loss / length_of_training_data;
 }
 
+//
+int max_index(Matrix *matrix) {
+    int max_index = 0;
+    for (int i = 0; i < matrix->rows; i++) {
+        if (matrix->data[i][0] > matrix->data[max_index][0]) {
+            max_index = i;
+        }
+    }
+    return max_index;
+}
+
+//calculate average success rate of the network on the training data
+double calculate_average_success_rate(Network *network, TrainingDataPacket **training_data, int length_of_training_data) {
+    double success_rate = 0;
+    for (int j = 0; j < length_of_training_data; j++) {
+        //free the empty matrix and assign input to the activations of the input layer
+        network->layers[0]->activations->data[0][0] = training_data[j]->input->data[0][0];
+        network->layers[0]->activations->data[1][0] = training_data[j]->input->data[1][0];
+        network->layers[0]->activations->data[2][0] = training_data[j]->input->data[2][0];
+        //propagate forward
+        propagate_forward(network);
+        //check if the output matches the target
+        if (max_index(network->layers[network->number_of_layers - 1]->activations) ==
+            max_index(training_data[j]->target)) {
+            success_rate++;
+        }
+    }
+    return success_rate / length_of_training_data;
+}
+
+double output_node_cost_derivative(double output, double target) {
+    return 2 * (output - target);
+}
+
+double ReLU_derivative(double x) {
+    if (x > 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+//calculate the intermediate values used for gradient descent (da_n/dz_n*dl/da_n) values for all neurons in a layer
+void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *target) {
+    //calculate deltas for output layer
+    if (layer_index == network->number_of_layers - 1) {
+        for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
+            network->layers[layer_index]->deltas->data[i][0] = output_node_cost_derivative(
+                    network->layers[layer_index]->activations->data[i][0], target->data[i][0]) *
+                                                                ReLU_derivative(
+                                                                        network->layers[layer_index]->weighted_sums->data[i][0]);
+        }
+    } else {
+        //calculate deltas for hidden layers
+        for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
+            double sum = 0;
+            for (int j = 0; j < network->layers[layer_index + 1]->layer_size; j++) {
+                sum += network->layers[layer_index + 1]->weights->data[j][i] *
+                       network->layers[layer_index + 1]->deltas->data[j][0];
+            }
+            network->layers[layer_index]->deltas->data[i][0] = sum *
+                                                                ReLU_derivative(
+                                                                        network->layers[layer_index]->weighted_sums->data[i][0]);
+        }
+    }
+}
+
+void calculate_delta_weights_for_layer(Network *network, int layer_index) {
+    for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
+        for (int j = 0; j < network->layers[layer_index]->input_size; j++) {
+            network->layers[layer_index]->delta_weights->data[i][j] =
+                    network->layers[layer_index]->deltas->data[i][0] *
+                    network->layers[layer_index]->input->data[j][0];
+        }
+    }
+}
+
+void calculate_delta_biases_for_layer(Network *network, int layer_index) {
+    for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
+        network->layers[layer_index]->delta_biases->data[i][0] = network->layers[layer_index]->deltas->data[i][0];
+    }
+}
+
+void average_delta_weights_for_layer(Network *network, int layer_index, int length_of_training_data) {
+    for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
+        for (int j = 0; j < network->layers[layer_index]->input_size; j++) {
+            network->layers[layer_index]->delta_weights->data[i][j] /= length_of_training_data;
+        }
+    }
+}
+
+void average_delta_biases_for_layer(Network *network, int layer_index, int length_of_training_data) {
+    for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
+        network->layers[layer_index]->delta_biases->data[i][0] /= length_of_training_data;
+    }
+}
+
+void update_weights_for_layer(Network *network, int layer_index, double learning_rate) {
+    for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
+        for (int j = 0; j < network->layers[layer_index]->input_size; j++) {
+            network->layers[layer_index]->weights->data[i][j] -=
+                    learning_rate * network->layers[layer_index]->delta_weights->data[i][j];
+        }
+    }
+}
+
+void update_biases_for_layer(Network *network, int layer_index, double learning_rate) {
+    for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
+        network->layers[layer_index]->biases->data[i][0] -=
+                learning_rate * network->layers[layer_index]->delta_biases->data[i][0];
+    }
+}
+
+void train_network(Network *network, TrainingDataPacket **training_data, int length_of_training_data, int epochs,
+                   double learning_rate) {
+    for (int i = 0; i < epochs; i++) {
+        for (int j = 0; j < length_of_training_data; j++) {
+            //free the empty matrix and assign input to the activations of the input layer
+            network->layers[0]->activations->data[0][0] = training_data[j]->input->data[0][0];
+            network->layers[0]->activations->data[1][0] = training_data[j]->input->data[1][0];
+            network->layers[0]->activations->data[2][0] = training_data[j]->input->data[2][0];
+            //propagate forward
+            propagate_forward(network);
+            //calculate deltas for output layer
+            calculate_deltas_for_layer(network, network->number_of_layers - 1, training_data[j]->target);
+            //calculate deltas for hidden layers
+            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+                calculate_deltas_for_layer(network, k, training_data[j]->target);
+            }
+            //calculate delta weights for output layer
+            calculate_delta_weights_for_layer(network, network->number_of_layers - 1);
+            //calculate delta weights for hidden layers
+            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+                calculate_delta_weights_for_layer(network, k);
+            }
+            //calculate delta biases for output layer
+            calculate_delta_biases_for_layer(network, network->number_of_layers - 1);
+            //calculate delta biases for hidden layers
+            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+                calculate_delta_biases_for_layer(network, k);
+            }
+        }
+        //average delta weights for output layer
+        average_delta_weights_for_layer(network, network->number_of_layers - 1, length_of_training_data);
+        //average delta weights for hidden layers
+        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            average_delta_weights_for_layer(network, k, length_of_training_data);
+        }
+        //average delta biases for output layer
+        average_delta_biases_for_layer(network, network->number_of_layers - 1, length_of_training_data);
+        //average delta biases for hidden layers
+        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            average_delta_biases_for_layer(network, k, length_of_training_data);
+        }
+        //update weights for output layer
+        update_weights_for_layer(network, network->number_of_layers - 1, learning_rate);
+        //update weights for hidden layers
+        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            update_weights_for_layer(network, k, learning_rate);
+        }
+        //update biases for output layer
+        update_biases_for_layer(network, network->number_of_layers - 1, learning_rate);
+        //update biases for hidden layers
+        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            update_biases_for_layer(network, k, learning_rate);
+        }
+        //calculate average loss every 10 epochs
+        if (i % 10 == 0) {
+            double loss = calculate_average_loss(network, training_data, length_of_training_data);
+            printf("avg loss: %f\n", loss);
+            double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
+            printf("success rate: %f\n", success_rate);
+        }
+    }
+}
+
+
+
+
 int main() {
     srand(time(NULL));
-    Network *network = create_network(4, (int[]) {3, 5, 20, 16});
+    Network *network = create_network(3, (int[]) {3, 10, 16, 16});
 
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",
-            250);
+            "C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\training_data.txt",
+            10000);
 
 
-    network->layers[0]->activations->data[0][0] = training_data[0]->input->data[0][0];
-    network->layers[0]->activations->data[1][0] = training_data[0]->input->data[1][0];
-    network->layers[0]->activations->data[2][0] = training_data[0]->input->data[2][0];
-    print_matrix(network->layers[0]->activations);
+//    network->layers[0]->activations->data[0][0] = training_data[0]->input->data[0][0];
+//    network->layers[0]->activations->data[1][0] = training_data[0]->input->data[1][0];
+//    network->layers[0]->activations->data[2][0] = training_data[0]->input->data[2][0];
+//    print_matrix(network->layers[0]->activations);
+//    propagate_forward(network);
+//    print_matrix(network->layers[0]->activations);
+//    print_network(network);
+
+//    double loss = calculate_average_loss(network, training_data, 250);
+//    printf("avg loss: %f\n", loss);
+
+    train_network(network, training_data, 10000, 10000, 0.5);
+
+    //user input and print the output
+    double input[3];
+    printf("Enter 3 numbers: ");
+    scanf("%lf %lf %lf", &input[0], &input[1], &input[2]);
+    network->layers[0]->activations->data[0][0] = input[0];
+    network->layers[0]->activations->data[1][0] = input[1];
+    network->layers[0]->activations->data[2][0] = input[2];
     propagate_forward(network);
-    print_matrix(network->layers[0]->activations);
-    print_network(network);
-
-    double loss = calculate_average_loss(network, training_data, 250);
-    printf("avg loss: %f\n", loss);
+    print_matrix(network->layers[network->number_of_layers - 1]->activations);
+    //print the index of the largest value
+    printf("index of the largest value: %d\n", max_index(network->layers[network->number_of_layers - 1]->activations));
 
     return 0;
+
+
 }
 
 
