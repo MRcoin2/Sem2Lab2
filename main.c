@@ -524,23 +524,11 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
 
 int main() {
     srand(time(NULL));
-    Network *network = create_network(3, (int[]) {3, 10, 16, 16});
+    Network *network = create_network(4, (int[]) {3, 10, 20, 16});
 
     TrainingDataPacket **training_data = read_training_data(
             "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",
             10000);
-
-
-//    network->layers[0]->activations->data[0][0] = training_data[0]->input->data[0][0];
-//    network->layers[0]->activations->data[1][0] = training_data[0]->input->data[1][0];
-//    network->layers[0]->activations->data[2][0] = training_data[0]->input->data[2][0];
-//    print_matrix(network->layers[0]->activations);
-//    propagate_forward(network);
-//    print_matrix(network->layers[0]->activations);
-//    print_network(network);
-
-//    double loss = calculate_average_loss(network, training_data, 250);
-//    printf("avg loss: %f\n", loss);
 
     train_network(network, training_data, 10000, 10000, 0.2);
 
