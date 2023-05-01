@@ -19,7 +19,7 @@ void free_matrix(Matrix *matrix);
 
 void matrix_multiply(Matrix *m1, Matrix *m2, Matrix *result);
 
-void matrix_add(Matrix *m1, Matrix *m2, Matrix *result);
+void add_matrices(Matrix *m1, Matrix *m2, Matrix *result);
 
 void matrix_subtract(Matrix *m1, Matrix *m2, Matrix *result);
 
@@ -34,5 +34,7 @@ void print_matrix(Matrix *matrix);
 int vector_max_index(Matrix *matrix);
 
 void randomize_matrix(Matrix *matrix);
+
+void element_wise_multiply(Matrix *m1, Matrix *m2, Matrix *result);
 
 #endif //SEM2LAB2_MATRIX_UTILS_H

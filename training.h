@@ -4,6 +4,7 @@
 
 #ifndef SEM2LAB2_TRAINING_H
 #define SEM2LAB2_TRAINING_H
+#include "matrix_utils.h"
 
 struct TrainingDataPacket {
     Matrix *input;

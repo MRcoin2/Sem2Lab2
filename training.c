@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include "matrix_utils.h"
 
+
 // create training values packet
 TrainingDataPacket *create_training_data_packet() {
     TrainingDataPacket *training_data_packet = malloc(sizeof(TrainingDataPacket));

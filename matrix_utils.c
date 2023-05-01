@@ -54,7 +54,7 @@ void matrix_multiply(Matrix *m1, Matrix *m2, Matrix *result) {
 }
 
 // add two matrices
-void matrix_add(Matrix *m1, Matrix *m2, Matrix *result) {
+void add_matrices(Matrix *m1, Matrix *m2, Matrix *result) {
     if (m1->rows != m2->rows || m1->cols != m2->cols) {
         printf("Error: Matrix dimensions do not match!\n");
         return;
@@ -141,6 +141,18 @@ void randomize_matrix(Matrix *matrix) {
     for (int i = 0; i < matrix->rows; i++) {
         for (int j = 0; j < matrix->cols; j++) {
             matrix->values[i][j] = (double) rand() / RAND_MAX * 2.0 - 1.0;
+        }
+    }
+}
+
+void element_wise_multiply(Matrix *m1, Matrix *m2, Matrix *result) {
+    if (m1->rows != m2->rows || m1->cols != m2->cols) {
+        printf("Error: Matrix dimensions do not match!\n");
+        return;
+    }
+    for (int i = 0; i < m1->rows; i++) {
+        for (int j = 0; j < m1->cols; j++) {
+            result->values[i][j] = m1->values[i][j] * m2->values[i][j];
         }
     }
 }

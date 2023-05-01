@@ -126,8 +126,8 @@ void propagate_forward(Network *network, Matrix *input) {
         //calculate weighted sums for hidden layers
         matrix_multiply(network->layers[i]->weights, network->layers[i]->input, network->layers[i]->weighted_sums);
         //add bias
-        matrix_add(network->layers[i]->weighted_sums, network->layers[i]->biases,
-                   network->layers[i]->weighted_sums);
+        add_matrices(network->layers[i]->weighted_sums, network->layers[i]->biases,
+                     network->layers[i]->weighted_sums);
 
         //calculate activations
         matrix_apply_function(network->layers[i]->weighted_sums, ReLU, network->layers[i]->activations);
@@ -139,9 +139,9 @@ void propagate_forward(Network *network, Matrix *input) {
                     network->layers[network->number_of_layers - 1]->input,
                     network->layers[network->number_of_layers - 1]->weighted_sums);
     //add bias
-    matrix_add(network->layers[network->number_of_layers - 1]->weighted_sums,
-               network->layers[network->number_of_layers - 1]->biases,
-               network->layers[network->number_of_layers - 1]->weighted_sums);
+    add_matrices(network->layers[network->number_of_layers - 1]->weighted_sums,
+                 network->layers[network->number_of_layers - 1]->biases,
+                 network->layers[network->number_of_layers - 1]->weighted_sums);
     //apply softmax
     softmax(network->layers[network->number_of_layers - 1]->weighted_sums,
             network->layers[network->number_of_layers - 1]->activations);
@@ -215,10 +215,11 @@ double ReLU_derivative(double x) {
     }
 }
 
-//calculate the intermediate values used for gradient descent (da_n/dz_n*dl/da_n) values for all neurons in a layer
 void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *target) {
     //calculate deltas for output layer
+    //the equation is delta_i = 2(a_i - y_i) * ReLU'(z_i)
     if (layer_index == network->number_of_layers - 1) {
+        //calculate deltas for each neuron in the output layer
         for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
             network->layers[layer_index]->deltas->values[i][0] = output_node_cost_derivative(
                     network->layers[layer_index]->activations->values[i][0], target->values[i][0]) *
@@ -226,13 +227,16 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
                                                                          network->layers[layer_index]->weighted_sums->values[i][0]);
         }
     } else {
-        //calculate deltas for hidden layers
+        //calculate deltas for each neuron in the hidden layer
+        //the equation is delta_i = sum(delta_j * w_ij) * ReLU'(z_i)
         for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
             double sum = 0;
+            //calculate the sum of the deltas of the neurons in the next layer multiplied by their weights
             for (int j = 0; j < network->layers[layer_index + 1]->layer_size; j++) {
                 sum += network->layers[layer_index + 1]->weights->values[j][i] *
                        network->layers[layer_index + 1]->deltas->values[j][0];
             }
+            //multiply the sum by the derivative of the weighted sum of the current neuron
             network->layers[layer_index]->deltas->values[i][0] = sum *
                                                                  ReLU_derivative(
                                                                          network->layers[layer_index]->weighted_sums->values[i][0]);
@@ -240,7 +244,8 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
     }
 }
 
-void calculate_delta_weights_for_layer(Network *network, int layer_index) {
+// add the delta weights for a layer for the current pass
+void add_delta_weights_for_layer(Network *network, int layer_index) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         for (int j = 0; j < network->layers[layer_index]->input_size; j++) {
             network->layers[layer_index]->delta_weights->values[i][j] +=
@@ -250,7 +255,8 @@ void calculate_delta_weights_for_layer(Network *network, int layer_index) {
     }
 }
 
-void calculate_delta_biases_for_layer(Network *network, int layer_index) {
+// add the delta biases for a layer for the current pass
+void add_delta_biases_for_layer(Network *network, int layer_index) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         network->layers[layer_index]->delta_biases->values[i][0] += network->layers[layer_index]->deltas->values[i][0];
     }
@@ -270,6 +276,7 @@ void average_delta_biases_for_layer(Network *network, int layer_index, int lengt
     }
 }
 
+// move the weights in the direction of the -gradient in proportion to the learning rate
 void update_weights_for_layer(Network *network, int layer_index, double learning_rate) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         for (int j = 0; j < network->layers[layer_index]->input_size; j++) {
@@ -279,6 +286,7 @@ void update_weights_for_layer(Network *network, int layer_index, double learning
     }
 }
 
+// move the biases in the direction of the -gradient in proportion to the learning rate
 void update_biases_for_layer(Network *network, int layer_index, double learning_rate) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         network->layers[layer_index]->biases->values[i][0] -=
@@ -299,16 +307,16 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
                 calculate_deltas_for_layer(network, k, training_data[j]->target);
             }
             //calculate delta weights for output layer
-            calculate_delta_weights_for_layer(network, network->number_of_layers - 1);
+            add_delta_weights_for_layer(network, network->number_of_layers - 1);
             //calculate delta weights for hidden layers
             for (int k = network->number_of_layers - 2; k >= 0; k--) {
-                calculate_delta_weights_for_layer(network, k);
+                add_delta_weights_for_layer(network, k);
             }
             //calculate delta biases for output layer
-            calculate_delta_biases_for_layer(network, network->number_of_layers - 1);
+            add_delta_biases_for_layer(network, network->number_of_layers - 1);
             //calculate delta biases for hidden layers
             for (int k = network->number_of_layers - 2; k >= 0; k--) {
-                calculate_delta_biases_for_layer(network, k);
+                add_delta_biases_for_layer(network, k);
             }
         }
         //average delta weights for output layer
