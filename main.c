@@ -181,7 +181,8 @@ double calculate_average_loss(Network *network, TrainingDataPacket **training_da
 
 // calculate average success rate of the network on the training values
 // by comparing the output to the target and counting the number of correct outputs
-double calculate_average_success_rate(Network *network, TrainingDataPacket **training_data, int length_of_training_data) {
+double
+calculate_average_success_rate(Network *network, TrainingDataPacket **training_data, int length_of_training_data) {
     double success_rate = 0;
     for (int j = 0; j < length_of_training_data; j++) {
         propagate_forward(network, training_data[j]->input);
@@ -343,14 +344,99 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
             update_biases_for_layer(network, k, learning_rate);
         }
 
-        //calculate average loss and success rate every 10 epochs
-        if (i % 10 == 0) {
+        // calculate average loss and success rate every 10 epochs
+        if (i % 100 == 0) {
             double loss = calculate_average_loss(network, training_data, length_of_training_data);
             printf("avg loss: %f\n", loss);
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
             printf("success rate: %f\n", success_rate);
             if (loss > last_loss) {
-                learning_rate *= 0.5;
+                learning_rate *= 0.8;
+                printf("learning rate: %f\n", learning_rate);
+            }
+            last_loss = loss;
+        }
+    }
+}
+
+// training function with no loss calculation for stochastic gradient descent
+void train_network_no_loss_calc(Network *network, TrainingDataPacket **training_data, int length_of_training_data,
+                                int epochs,
+                                double learning_rate) {
+    for (int i = 0; i < epochs; i++) {
+        for (int j = 0; j < length_of_training_data; j++) {
+            //propagate forward
+            propagate_forward(network, training_data[j]->input);
+            //calculate deltas for output layer
+            calculate_deltas_for_layer(network, network->number_of_layers - 1, training_data[j]->target);
+            //calculate deltas for hidden layers
+            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+                calculate_deltas_for_layer(network, k, training_data[j]->target);
+            }
+            //calculate delta weights for output layer
+            add_delta_weights_for_layer(network, network->number_of_layers - 1);
+            //calculate delta weights for hidden layers
+            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+                add_delta_weights_for_layer(network, k);
+            }
+            //calculate delta biases for output layer
+            add_delta_biases_for_layer(network, network->number_of_layers - 1);
+            //calculate delta biases for hidden layers
+            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+                add_delta_biases_for_layer(network, k);
+            }
+        }
+
+        //calculate the gradient for all data:
+        //average delta weights for output layer
+        average_delta_weights_for_layer(network, network->number_of_layers - 1, length_of_training_data);
+        //average delta weights for hidden layers
+        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            average_delta_weights_for_layer(network, k, length_of_training_data);
+        }
+        //average delta biases for output layer
+        average_delta_biases_for_layer(network, network->number_of_layers - 1, length_of_training_data);
+        //average delta biases for hidden layers
+        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            average_delta_biases_for_layer(network, k, length_of_training_data);
+        }
+
+        //apply the gradient to the weights and biases:
+        //update weights for output layer
+        update_weights_for_layer(network, network->number_of_layers - 1, learning_rate);
+        //update weights for hidden layers
+        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            update_weights_for_layer(network, k, learning_rate);
+        }
+        //update biases for output layer
+        update_biases_for_layer(network, network->number_of_layers - 1, learning_rate);
+        //update biases for hidden layers
+        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            update_biases_for_layer(network, k, learning_rate);
+        }
+    }
+}
+
+//split the training data into 200 element packets randomly and train on that
+void train_stochastic(Network *network, TrainingDataPacket **training_data, int length_of_training_data, int epochs,
+                      int split_size,
+                      double learning_rate) {
+    double last_loss = calculate_average_loss(network, training_data, length_of_training_data);
+    for (int i = 0; i < epochs; i++) {
+        TrainingDataPacket **packets = malloc(sizeof(TrainingDataPacket *) * split_size);
+        for (int j = 0; j < split_size; j++) {
+            packets[j] = training_data[rand() % length_of_training_data];
+        }
+        train_network_no_loss_calc(network, packets, split_size, 1, learning_rate);
+        free(packets);
+        //calculate average loss and success rate every 10 epochs
+        if (i % 100 == 0) {
+            double loss = calculate_average_loss(network, training_data, length_of_training_data);
+            printf("avg loss: %f\n", loss);
+            double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
+            printf("success rate: %f\n", success_rate);
+            if (loss > last_loss) {
+                learning_rate *= 0.8;
                 printf("learning rate: %f\n", learning_rate);
             }
             last_loss = loss;
@@ -359,7 +445,7 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
 }
 
 //save the network configuration and the weights and biases to a file
-void save_network_to_file(Network *network){
+void save_network_to_file(Network *network) {
     FILE *file = fopen("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt", "w");
     fprintf(file, "%d\n", network->number_of_layers);
     for (int i = 0; i < network->number_of_layers; i++) {
@@ -381,8 +467,8 @@ void save_network_to_file(Network *network){
 }
 
 //load the network configuration and the weights and biases from a file
-Network *load_network_from_file(){
-    FILE *file = fopen("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt", "r");
+Network *load_network_from_file(char file_name[]) {
+    FILE *file = fopen(file_name, "r");
     int number_of_layers;
     fscanf(file, "%d", &number_of_layers);
     int *layer_sizes = malloc(sizeof(int) * number_of_layers);
@@ -406,20 +492,89 @@ Network *load_network_from_file(){
     return network;
 }
 
+//function for using the network
+void use_network(Network *network, Matrix *input) {
+    propagate_forward(network, input);
+    char colors[16][25] = {"white", "gray", "black", "red", "pink", "dark red", "orange",
+                           "brown", "yellow", "green","dark green",
+                           "teal", "light blue", "blue", "dark blue", "purple"};
+    printf("output: %s\n",
+           colors[vector_max_index(network->layers[network->number_of_layers - 1]->activations)]);
+}
+
 int main() {
     //seed the random number generator
     srand(time(NULL));
+    //interface to choose to create a new network or load a file
+    printf("1. Create new network\n2. Load network from file\n");
+    int choice;
+    scanf("%d", &choice);
+    if (choice == 1) {
+        printf("Enter number of layers: ");
+        int number_of_layers;
+        scanf("%d", &number_of_layers);
+        int *layer_sizes = malloc(sizeof(int) * number_of_layers);
+        for (int i = 0; i < number_of_layers; i++) {
+            printf("Enter size of layer %d: ", i);
+            scanf("%d", &layer_sizes[i]);
+        }
+        Network *network = create_network(number_of_layers, layer_sizes);
+        //ask user for training data file
+        printf("Enter training data file name: ");
+        char training_data_file_name[100];
+        scanf("%s", training_data_file_name);
+        //ask how much training data to use
+        printf("Enter number of training data to use: ");
+        int lenght_of_training_data;
+        scanf("%d", &lenght_of_training_data);
+        TrainingDataPacket **training_data = read_training_data(
+                training_data_file_name,
+                lenght_of_training_data);
+        //ask for epochs
+        printf("Enter number of epochs: ");
+        int epochs;
+        scanf("%d", &epochs);
+        //ask for batch size
+        printf("Enter batch size: ");
+        int batch_size;
+        scanf("%d", &batch_size);
+        //ask for learning rate
+        printf("Enter learning rate: ");
+        double learning_rate;
+        scanf("%lf", &learning_rate);
+        //train the network
+        train_stochastic(network, training_data, lenght_of_training_data, epochs, batch_size, learning_rate);
+        save_network_to_file(network);
+        return 0;
+    } else if (choice == 2) {
+        //ask for file name
+        printf("Enter file name: ");
+        char file_name[100];
+        scanf("%s", file_name);
+        Network *network = load_network_from_file(file_name);
+        //get input from user
+        Matrix *input = create_matrix(3, 1);
+        printf("Enter 3 numbers: ");
+        scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);
+        use_network(network, input);
+        free_matrix(input);
+        return 0;
+    }
+
+
+
 
     //create the network
-    Network *network = create_network(4, (int[]) {3, 10, 20, 16});
-//    Network *network = load_network_from_file();
+    Network *network = create_network(5, (int[]) {3, 10, 16, 20, 16});
+//    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt");
     //read the training data
     TrainingDataPacket **training_data = read_training_data(
             "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
             60000);
 
     //train the network
-    train_network(network, training_data, 60000, 2000, 1);
+    //train_network(network, training_data, 60000, 2000, 1);
+    train_stochastic(network, training_data, 60000, 3000, 200, 0.1);
     save_network_to_file(network);
 
     //get input from user
@@ -447,8 +602,6 @@ int main() {
     free(training_data);
     return 0;
 }
-
-//todo zapisywanie wag i biasów do pliku
 
 // 10 neuronów wejściowych
 // rzędy w kalawieturze
