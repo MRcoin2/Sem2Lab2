@@ -421,7 +421,7 @@ void train_network_no_loss_calc(Network *network, TrainingDataPacket **training_
 void train_stochastic(Network *network, TrainingDataPacket **training_data, int length_of_training_data, int epochs,
                       int split_size,
                       double learning_rate) {
-    double last_loss = calculate_average_loss(network, training_data, length_of_training_data);
+//    double last_loss = calculate_average_loss(network, training_data, length_of_training_data);
     for (int i = 0; i < epochs; i++) {
         TrainingDataPacket **packets = malloc(sizeof(TrainingDataPacket *) * split_size);
         for (int j = 0; j < split_size; j++) {
@@ -435,11 +435,12 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
             printf("avg loss: %f\n", loss);
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
             printf("success rate: %f\n", success_rate);
-            if (loss > last_loss) {
-                learning_rate *= 0.99;
-                printf("learning rate: %f\n", learning_rate);
-            }
-            last_loss = loss;
+//            if (loss > last_loss) {
+//                learning_rate *= 0.9;
+//                printf("learning rate: %f\n", learning_rate);
+//            }
+//            last_loss = loss;
+//
         }
     }
 }
@@ -574,7 +575,7 @@ int main() {
 
     //train the network
     //train_network(network, training_data, 60000, 2000, 1);
-    train_stochastic(network, training_data, 60000, 8000, 200, 1);
+    train_stochastic(network, training_data, 60000, 80000, 60, 0.01);
     save_network_to_file(network);
 
     //get input from user
