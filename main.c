@@ -436,7 +436,7 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
             printf("success rate: %f\n", success_rate);
             if (loss > last_loss) {
-                learning_rate *= 0.8;
+                learning_rate *= 0.99;
                 printf("learning rate: %f\n", learning_rate);
             }
             last_loss = loss;
@@ -506,66 +506,66 @@ int main() {
     //seed the random number generator
     srand(time(NULL));
     //interface to choose to create a new network or load a file
-    printf("1. Create new network\n2. Load network from file\n");
-    int choice;
-    scanf("%d", &choice);
-    if (choice == 1) {
-        printf("Enter number of layers: ");
-        int number_of_layers;
-        scanf("%d", &number_of_layers);
-        int *layer_sizes = malloc(sizeof(int) * number_of_layers);
-        for (int i = 0; i < number_of_layers; i++) {
-            printf("Enter size of layer %d: ", i);
-            scanf("%d", &layer_sizes[i]);
-        }
-        Network *network = create_network(number_of_layers, layer_sizes);
-        //ask user for training data file
-        printf("Enter training data file name: ");
-        char training_data_file_name[100];
-        scanf("%s", training_data_file_name);
-        //ask how much training data to use
-        printf("Enter number of training data to use: ");
-        int lenght_of_training_data;
-        scanf("%d", &lenght_of_training_data);
-        TrainingDataPacket **training_data = read_training_data(
-                training_data_file_name,
-                lenght_of_training_data);
-        //ask for epochs
-        printf("Enter number of epochs: ");
-        int epochs;
-        scanf("%d", &epochs);
-        //ask for batch size
-        printf("Enter batch size: ");
-        int batch_size;
-        scanf("%d", &batch_size);
-        //ask for learning rate
-        printf("Enter learning rate: ");
-        double learning_rate;
-        scanf("%lf", &learning_rate);
-        //train the network
-        train_stochastic(network, training_data, lenght_of_training_data, epochs, batch_size, learning_rate);
-        save_network_to_file(network);
-        return 0;
-    } else if (choice == 2) {
-        //ask for file name
-        printf("Enter file name: ");
-        char file_name[100];
-        scanf("%s", file_name);
-        Network *network = load_network_from_file(file_name);
-        //get input from user
-        Matrix *input = create_matrix(3, 1);
-        printf("Enter 3 numbers: ");
-        scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);
-        use_network(network, input);
-        free_matrix(input);
-        return 0;
-    }
+//    printf("1. Create new network\n2. Load network from file\n");
+//    int choice;
+//    scanf("%d", &choice);
+//    if (choice == 1) {
+//        printf("Enter number of layers: ");
+//        int number_of_layers;
+//        scanf("%d", &number_of_layers);
+//        int *layer_sizes = malloc(sizeof(int) * number_of_layers);
+//        for (int i = 0; i < number_of_layers; i++) {
+//            printf("Enter size of layer %d: ", i);
+//            scanf("%d", &layer_sizes[i]);
+//        }
+//        Network *network = create_network(number_of_layers, layer_sizes);
+//        //ask user for training data file
+//        printf("Enter training data file name: ");
+//        char training_data_file_name[100];
+//        scanf("%s", training_data_file_name);
+//        //ask how much training data to use
+//        printf("Enter number of training data to use: ");
+//        int lenght_of_training_data;
+//        scanf("%d", &lenght_of_training_data);
+//        TrainingDataPacket **training_data = read_training_data(
+//                training_data_file_name,
+//                lenght_of_training_data);
+//        //ask for epochs
+//        printf("Enter number of epochs: ");
+//        int epochs;
+//        scanf("%d", &epochs);
+//        //ask for batch size
+//        printf("Enter batch size: ");
+//        int batch_size;
+//        scanf("%d", &batch_size);
+//        //ask for learning rate
+//        printf("Enter learning rate: ");
+//        double learning_rate;
+//        scanf("%lf", &learning_rate);
+//        //train the network
+//        train_stochastic(network, training_data, lenght_of_training_data, epochs, batch_size, learning_rate);
+//        save_network_to_file(network);
+//        return 0;
+//    } else if (choice == 2) {
+//        //ask for file name
+//        printf("Enter file name: ");
+//        char file_name[100];
+//        scanf("%s", file_name);
+//        Network *network = load_network_from_file(file_name);
+//        //get input from user
+//        Matrix *input = create_matrix(3, 1);
+//        printf("Enter 3 numbers: ");
+//        scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);
+//        use_network(network, input);
+//        free_matrix(input);
+//        return 0;
+//    }
 
 
 
 
     //create the network
-    Network *network = create_network(5, (int[]) {3, 10, 16, 20, 16});
+    Network *network = create_network(4, (int[]) {3, 30, 20, 16});
 //    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt");
     //read the training data
     TrainingDataPacket **training_data = read_training_data(
@@ -574,7 +574,7 @@ int main() {
 
     //train the network
     //train_network(network, training_data, 60000, 2000, 1);
-    train_stochastic(network, training_data, 60000, 3000, 200, 0.1);
+    train_stochastic(network, training_data, 60000, 8000, 200, 1);
     save_network_to_file(network);
 
     //get input from user
