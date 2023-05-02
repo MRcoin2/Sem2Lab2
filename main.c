@@ -289,6 +289,8 @@ void update_biases_for_layer(Network *network, int layer_index, double learning_
 // train the network on the given training data for the given number of epochs
 void train_network(Network *network, TrainingDataPacket **training_data, int length_of_training_data, int epochs,
                    double learning_rate) {
+
+    double last_loss = calculate_average_loss(network, training_data, length_of_training_data);
     for (int i = 0; i < epochs; i++) {
         for (int j = 0; j < length_of_training_data; j++) {
             //propagate forward
@@ -342,11 +344,16 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
         }
 
         //calculate average loss and success rate every 10 epochs
-        if (i % 100 == 0) {
+        if (i % 10 == 0) {
             double loss = calculate_average_loss(network, training_data, length_of_training_data);
             printf("avg loss: %f\n", loss);
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
             printf("success rate: %f\n", success_rate);
+            if (loss > last_loss) {
+                learning_rate *= 0.5;
+                printf("learning rate: %f\n", learning_rate);
+            }
+            last_loss = loss;
         }
     }
 }
@@ -412,7 +419,7 @@ int main() {
             60000);
 
     //train the network
-    train_network(network, training_data, 60000, 2000, 0.2);
+    train_network(network, training_data, 60000, 2000, 1);
     save_network_to_file(network);
 
     //get input from user
