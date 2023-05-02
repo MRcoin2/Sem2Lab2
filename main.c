@@ -342,7 +342,7 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
         }
 
         //calculate average loss and success rate every 10 epochs
-        if (i % 10 == 0) {
+        if (i % 100 == 0) {
             double loss = calculate_average_loss(network, training_data, length_of_training_data);
             printf("avg loss: %f\n", loss);
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
@@ -351,6 +351,53 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
     }
 }
 
+//save the network configuration and the weights and biases to a file
+void save_network_to_file(Network *network){
+    FILE *file = fopen("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt", "w");
+    fprintf(file, "%d\n", network->number_of_layers);
+    for (int i = 0; i < network->number_of_layers; i++) {
+        fprintf(file, "%d\n", network->layers[i]->layer_size);
+    }
+    for (int i = 1; i < network->number_of_layers; i++) {
+        for (int j = 0; j < network->layers[i]->layer_size; j++) {
+            for (int k = 0; k < network->layers[i]->input_size; k++) {
+                fprintf(file, "%f\n", network->layers[i]->weights->values[j][k]);
+            }
+        }
+    }
+    for (int i = 1; i < network->number_of_layers; i++) {
+        for (int j = 0; j < network->layers[i]->layer_size; j++) {
+            fprintf(file, "%f\n", network->layers[i]->biases->values[j][0]);
+        }
+    }
+    fclose(file);
+}
+
+//load the network configuration and the weights and biases from a file
+Network *load_network_from_file(){
+    FILE *file = fopen("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt", "r");
+    int number_of_layers;
+    fscanf(file, "%d", &number_of_layers);
+    int *layer_sizes = malloc(sizeof(int) * number_of_layers);
+    for (int i = 0; i < number_of_layers; i++) {
+        fscanf(file, "%d", &layer_sizes[i]);
+    }
+    Network *network = create_network(number_of_layers, layer_sizes);
+    for (int i = 1; i < network->number_of_layers; i++) {
+        for (int j = 0; j < network->layers[i]->layer_size; j++) {
+            for (int k = 0; k < network->layers[i]->input_size; k++) {
+                fscanf(file, "%lf", &network->layers[i]->weights->values[j][k]);
+            }
+        }
+    }
+    for (int i = 1; i < network->number_of_layers; i++) {
+        for (int j = 0; j < network->layers[i]->layer_size; j++) {
+            fscanf(file, "%lf", &network->layers[i]->biases->values[j][0]);
+        }
+    }
+    fclose(file);
+    return network;
+}
 
 int main() {
     //seed the random number generator
@@ -358,14 +405,15 @@ int main() {
 
     //create the network
     Network *network = create_network(4, (int[]) {3, 10, 20, 16});
-
+//    Network *network = load_network_from_file();
     //read the training data
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_data.txt",//TODO fix for when using different training data
+            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
             60000);
 
     //train the network
-    train_network(network, training_data, 60000, 100, 0.2);
+    train_network(network, training_data, 60000, 2000, 0.2);
+    save_network_to_file(network);
 
     //get input from user
     Matrix *input = create_matrix(3, 1);
@@ -392,6 +440,7 @@ int main() {
     free(training_data);
     return 0;
 }
+
 //todo zapisywanie wag i biasów do pliku
 
 // 10 neuronów wejściowych
