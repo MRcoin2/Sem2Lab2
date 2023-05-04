@@ -27,7 +27,6 @@ void *softmax(Matrix *matrix, Matrix *result) {
 }
 
 struct Layer {
-    int index;
     int input_size;
     int layer_size;
     int output_size;
@@ -58,7 +57,6 @@ Network *create_network(int number_of_layers, int *layer_sizes) {
     // create layers
     for (int i = 0; i < number_of_layers; i++) {
         network->layers[i] = malloc(sizeof(Layer));
-        network->layers[i]->index = i;
         network->layers[i]->layer_size = layer_sizes[i];
         if (i == 0) {//input layer
             network->layers[i]->input_size = 0;
@@ -421,7 +419,7 @@ void train_network_no_loss_calc(Network *network, TrainingDataPacket **training_
 void train_stochastic(Network *network, TrainingDataPacket **training_data, int length_of_training_data, int epochs,
                       int split_size,
                       double learning_rate) {
-//    double last_loss = calculate_average_loss(network, training_data, length_of_training_data);
+    double last_loss = calculate_average_loss(network, training_data, length_of_training_data);
     for (int i = 0; i < epochs; i++) {
         TrainingDataPacket **packets = malloc(sizeof(TrainingDataPacket *) * split_size);
         for (int j = 0; j < split_size; j++) {
@@ -431,16 +429,22 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
         free(packets);
         //calculate average loss and success rate every 10 epochs
         if (i % 100 == 0) {
+            printf("____________________________________________________\n");
+            //print finished percentage
+            printf("finished: %.2f%%\n", (double) i / epochs * 100);
+            //print the average loss and success rate
             double loss = calculate_average_loss(network, training_data, length_of_training_data);
             printf("avg loss: %f\n", loss);
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
-            printf("success rate: %f\n", success_rate);
-//            if (loss > last_loss) {
-//                learning_rate *= 0.9;
-//                printf("learning rate: %f\n", learning_rate);
-//            }
-//            last_loss = loss;
-//
+            //print succes rate in green color
+            printf("\033[0;32m");
+            printf("success rate: %.2f%%\n", success_rate*100);
+            printf("\033[0m");
+            if (loss > last_loss) {
+                learning_rate *= 0.9;
+                printf("learning rate: %f\n", learning_rate);
+            }
+            last_loss = loss;
         }
     }
 }
@@ -555,9 +559,11 @@ int main() {
 //        Network *network = load_network_from_file(file_name);
 //        //get input from user
 //        Matrix *input = create_matrix(3, 1);
+//        while (1){
 //        printf("Enter 3 numbers: ");
 //        scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);
 //        use_network(network, input);
+//        print_matrix(network->layers[network->number_of_layers - 1]->activations);}
 //        free_matrix(input);
 //        return 0;
 //    }
@@ -566,22 +572,22 @@ int main() {
 
 
     //create the network
-    Network *network = create_network(4, (int[]) {3, 30, 20, 16});
+    Network *network = create_network(5, (int[]) {3, 10,16, 20, 16});
 //    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt");
     //read the training data
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
+            "C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
             60000);
 
     //train the network
     //train_network(network, training_data, 60000, 2000, 1);
-    train_stochastic(network, training_data, 60000, 80000, 60, 0.01);
+    train_stochastic(network, training_data, 60000, 8000, 600, 0.1);
     save_network_to_file(network);
 
     //get input from user
     Matrix *input = create_matrix(3, 1);
     printf("Enter 3 numbers: ");
-    scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);
+    scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);//TODO implement this on the copy matrix function
     propagate_forward(network, input);
     free_matrix(input);
 
