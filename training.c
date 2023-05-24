@@ -34,10 +34,9 @@ TrainingDataPacket **read_training_data(char *file_name, int lenght_of_training_
         training_data[i] = create_training_data_packet();
     }
     for (int i = 0; i < lenght_of_training_data; i++) {
-        fscanf(file, "%lf %lf %lf",
+        fscanf(file, "%lf %lf",
                &training_data[i]->input->values[0][0],
-               &training_data[i]->input->values[1][0],
-               &training_data[i]->input->values[2][0]);
+               &training_data[i]->input->values[1][0]);
         int target_index;
         fscanf(file, "%d", &target_index);
         training_data[i]->target->values[target_index][0] = 1;

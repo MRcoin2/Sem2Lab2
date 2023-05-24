@@ -9,8 +9,11 @@
 // ReLU activation function
 double ReLU(double x) {
     return fmax(0, x);
-};
+}
 
+double sigmoid(double x) {
+    return 1 / (1 + exp(-x));
+}
 //normalized softmax function for the output layer
 void *softmax(Matrix *matrix, Matrix *result) {
 
@@ -104,12 +107,12 @@ void free_network(Network *network) {
     free(network);
 }
 
+
 // propagate forward through the network
 void propagate_forward(Network *network, Matrix *input) {
     //assign input to the activations of the input layer
     network->layers[0]->activations->values[0][0] = input->values[0][0];
     network->layers[0]->activations->values[1][0] = input->values[1][0];
-    network->layers[0]->activations->values[2][0] = input->values[2][0];
 
     //calculate weighted sums and activations for hidden layers and output layer (exclude input layer i=1)
     for (int i = 1; i < network->number_of_layers - 1; i++) {
@@ -120,7 +123,7 @@ void propagate_forward(Network *network, Matrix *input) {
                      network->layers[i]->weighted_sums);
 
         //calculate activations
-        matrix_apply_function(network->layers[i]->weighted_sums, ReLU, network->layers[i]->activations);
+        matrix_apply_function(network->layers[i]->weighted_sums, sigmoid, network->layers[i]->activations);
         //set activations as input for next layer
         network->layers[i + 1]->input = network->layers[i]->activations;
     }
@@ -189,6 +192,7 @@ calculate_average_success_rate(Network *network, TrainingDataPacket **training_d
         if (vector_max_index(network->layers[network->number_of_layers - 1]->activations) ==
             vector_max_index(training_data[j]->target)) {
             success_rate++;
+            printf("%f %f\n", training_data[j]->input->values[0][0],training_data[j]->input->values[1][0]);
         }
     }
     return success_rate / length_of_training_data;
@@ -206,6 +210,10 @@ double ReLU_derivative(double x) {
     }
 }
 
+double sigmoid_derivative(double x) {
+    return sigmoid(x) * (1 - sigmoid(x));
+}
+
 void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *target) {
     //calculate deltas for output layer
     //the equation is delta_i = 2(a_i - y_i) * ReLU'(z_i)
@@ -214,7 +222,7 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
         for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
             network->layers[layer_index]->deltas->values[i][0] = output_node_cost_derivative(
                     network->layers[layer_index]->activations->values[i][0], target->values[i][0]) *
-                                                                 ReLU_derivative(
+                    sigmoid_derivative(
                                                                          network->layers[layer_index]->weighted_sums->values[i][0]);
         }
     } else {
@@ -229,7 +237,7 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
             }
             //multiply the sum by the derivative of the weighted sum of the current neuron
             network->layers[layer_index]->deltas->values[i][0] = sum *
-                                                                 ReLU_derivative(
+                    sigmoid_derivative(
                                                                          network->layers[layer_index]->weighted_sums->values[i][0]);
         }
     }
@@ -343,13 +351,14 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
         }
 
         // calculate average loss and success rate every 10 epochs
-        if (i % 100 == 0) {
+        if (i % 10000 == 0) {
+            printf("epoch: %d\n", i);
             double loss = calculate_average_loss(network, training_data, length_of_training_data);
             printf("avg loss: %f\n", loss);
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
             printf("success rate: %f\n", success_rate);
             if (loss > last_loss) {
-                learning_rate *= 0.8;
+                learning_rate *= 1;
                 printf("learning rate: %f\n", learning_rate);
             }
             last_loss = loss;
@@ -438,7 +447,7 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
             //print succes rate in green color
             printf("\033[0;32m");
-            printf("success rate: %.2f%%\n", success_rate*100);
+            printf("success rate: %.2f%%\n", success_rate * 100);
             printf("\033[0m");
             if (loss > last_loss) {
                 learning_rate *= 0.9;
@@ -451,7 +460,7 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
 
 //save the network configuration and the weights and biases to a file
 void save_network_to_file(Network *network) {
-    FILE *file = fopen("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt", "w");
+    FILE *file = fopen("C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\network.txt", "w");
     fprintf(file, "%d\n", network->number_of_layers);
     for (int i = 0; i < network->number_of_layers; i++) {
         fprintf(file, "%d\n", network->layers[i]->layer_size);
@@ -501,7 +510,7 @@ Network *load_network_from_file(char file_name[]) {
 void use_network(Network *network, Matrix *input) {
     propagate_forward(network, input);
     char colors[16][25] = {"white", "gray", "black", "red", "pink", "dark red", "orange",
-                           "brown", "yellow", "green","dark green",
+                           "brown", "yellow", "green", "dark green",
                            "teal", "light blue", "blue", "dark blue", "purple"};
     printf("output: %s\n",
            colors[vector_max_index(network->layers[network->number_of_layers - 1]->activations)]);
@@ -572,36 +581,36 @@ int main() {
 
 
     //create the network
-    Network *network = create_network(5, (int[]) {3, 10,16, 20, 16});
+    Network *network = create_network(3, (int[]) {2, 3, 2});
 //    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt");
     //read the training data
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
-            60000);
+            "C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\xor.txt",
+            4);
 
     //train the network
-    //train_network(network, training_data, 60000, 2000, 1);
-    train_stochastic(network, training_data, 60000, 8000, 600, 0.1);
+    train_network(network, training_data, 4, 20000, 0.3);
     save_network_to_file(network);
 
     //get input from user
-    Matrix *input = create_matrix(3, 1);
-    printf("Enter 3 numbers: ");
-    scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);//TODO implement this on the copy matrix function
-    propagate_forward(network, input);
-    free_matrix(input);
 
-    //print the output
-    print_matrix(network->layers[network->number_of_layers - 1]->activations);
-    //print the index of the largest value
-    printf("index of the largest value: %d\n",
-           vector_max_index(network->layers[network->number_of_layers - 1]->activations));
+    Matrix *input = create_matrix(2, 1);
+    while(1) {
+        printf("Enter 2 numbers: ");
+        scanf("%lf %lf", &input->values[0][0], &input->values[1][0]);//TODO implement this on the copy matrix function
+        propagate_forward(network, input);
 
+        //print the output
+        print_matrix(network->layers[network->number_of_layers - 1]->activations);
+        //print the index of the largest value
+        printf("index of the largest value: %d\n",
+               vector_max_index(network->layers[network->number_of_layers - 1]->activations));
+    }
     //free the network
     free_network(network);
 
     // free the training data
-    for (int i = 0; i < 60000; i++) {
+    for (int i = 0; i < 4; i++) {
         free_matrix(training_data[i]->input);
         free_matrix(training_data[i]->target);
         free(training_data[i]);
