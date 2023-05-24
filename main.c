@@ -454,7 +454,7 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
 
 //save the network configuration and the weights and biases to a file
 void save_network_to_file(Network *network) {
-    FILE *file = fopen("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt", "w");
+    FILE *file = fopen("C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\network.txt", "w");
     fprintf(file, "%d\n", network->number_of_layers);
     for (int i = 0; i < network->number_of_layers; i++) {
         fprintf(file, "%d\n", network->layers[i]->layer_size);
@@ -584,7 +584,7 @@ int main() {
 
     //train the network
     //train_network(network, training_data, 60000, 2000, 1);
-    train_stochastic(network, training_data, 60000, 8000, 600, 0.1);
+    train_stochastic(network, training_data, 60000, 6000, 600, 0.1);
     save_network_to_file(network);
 
     //get input from user
