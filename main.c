@@ -8,7 +8,10 @@
 
 // ReLU activation function
 double ReLU(double x) {
-    return fmax(0, x);
+    if (x < 0) {
+        return x*0.2;
+    }
+    return x;
 };
 
 //normalized softmax function for the output layer
@@ -202,7 +205,7 @@ double ReLU_derivative(double x) {
     if (x > 0) {
         return 1;
     } else {
-        return 0;
+        return 0.2;
     }
 }
 
