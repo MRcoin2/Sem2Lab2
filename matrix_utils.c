@@ -157,10 +157,10 @@ void element_wise_multiply(Matrix *m1, Matrix *m2, Matrix *result) {
     }
 }
 
-void copy_matrix(Matrix *matrix, Matrix *result) {
+void copy_matrix(Matrix *matrix, Matrix *destination) {
     for (int i = 0; i < matrix->rows; i++) {
         for (int j = 0; j < matrix->cols; j++) {
-            result->values[i][j] = matrix->values[i][j];
+            destination->values[i][j] = matrix->values[i][j];
         }
     }
 }

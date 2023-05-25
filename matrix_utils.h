@@ -37,4 +37,6 @@ void randomize_matrix(Matrix *matrix);
 
 void element_wise_multiply(Matrix *m1, Matrix *m2, Matrix *result);
 
+void copy_matrix(Matrix *source, Matrix *destination);
+
 #endif //SEM2LAB2_MATRIX_UTILS_H

@@ -23,7 +23,7 @@ TrainingDataPacket *create_training_data_packet() {
 // 0.4 0.5 0.6 15
 // 0.7 0.8 0.9 12
 // 0.1 0.3 0.3 14
-TrainingDataPacket **read_training_data(char *file_name, int lenght_of_training_data) {
+TrainingDataPacket **read_training_data(char *file_name, int lenght_of_training_data, int packet_size) {
     FILE *file = fopen(file_name, "r");
     if (file == NULL) {
         printf("Error: Could not open file!\n");
@@ -34,10 +34,11 @@ TrainingDataPacket **read_training_data(char *file_name, int lenght_of_training_
         training_data[i] = create_training_data_packet();
     }
     for (int i = 0; i < lenght_of_training_data; i++) {
-        fscanf(file, "%lf %lf %lf",
-               &training_data[i]->input->values[0][0],
-               &training_data[i]->input->values[1][0],
-               &training_data[i]->input->values[2][0]);
+        for (int j = 0; j < packet_size; j++) {
+            double value;
+            fscanf(file, "%lf", &value);
+            training_data[i]->input->values[j][0] = value;
+        }
         int target_index;
         fscanf(file, "%d", &target_index);
         training_data[i]->target->values[target_index][0] = 1;

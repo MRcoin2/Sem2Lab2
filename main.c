@@ -5,14 +5,27 @@
 #include "matrix_utils.h"
 #include "training.h"
 
+#define ReLU_A 0.1
+#define ReLU_B 1
 
 // ReLU activation function
 double ReLU(double x) {
     if (x < 0) {
-        return x*0.2;
+        return x*ReLU_A;
     }
-    return x;
+    return x*ReLU_B;
 };
+
+double ReLU_derivative(double x) {
+    if (x > 0) {
+        return ReLU_B;
+    } else {
+        return ReLU_A;
+    }
+}
+
+#define ACTIVATION_FUNCTION ReLU
+#define ACTIVATION_FUNCTION_DERIVATIVE ReLU_derivative
 
 //normalized softmax function for the output layer
 void *softmax(Matrix *matrix, Matrix *result) {
@@ -87,8 +100,10 @@ Network *create_network(int number_of_layers, int *layer_sizes) {
         //initialize bias
         network->layers[i]->biases = create_matrix(network->layers[i]->layer_size, 1);
         network->layers[i]->delta_biases = create_matrix(network->layers[i]->layer_size, 1);
-        randomize_matrix(network->layers[i]->biases);
+//        randomize_matrix(network->layers[i]->biases);
+        fill_matrix(network->layers[i]->biases, 0.0);
     }
+
     return network;
 }
 
@@ -110,9 +125,7 @@ void free_network(Network *network) {
 // propagate forward through the network
 void propagate_forward(Network *network, Matrix *input) {
     //assign input to the activations of the input layer
-    network->layers[0]->activations->values[0][0] = input->values[0][0];
-    network->layers[0]->activations->values[1][0] = input->values[1][0];
-    network->layers[0]->activations->values[2][0] = input->values[2][0];
+    copy_matrix(input, network->layers[0]->activations);
 
     //calculate weighted sums and activations for hidden layers and output layer (exclude input layer i=1)
     for (int i = 1; i < network->number_of_layers - 1; i++) {
@@ -123,7 +136,7 @@ void propagate_forward(Network *network, Matrix *input) {
                      network->layers[i]->weighted_sums);
 
         //calculate activations
-        matrix_apply_function(network->layers[i]->weighted_sums, ReLU, network->layers[i]->activations);
+        matrix_apply_function(network->layers[i]->weighted_sums, ACTIVATION_FUNCTION, network->layers[i]->activations);
         //set activations as input for next layer
         network->layers[i + 1]->input = network->layers[i]->activations;
     }
@@ -201,13 +214,7 @@ double output_node_cost_derivative(double output, double target) {
     return 2 * (output - target);
 }
 
-double ReLU_derivative(double x) {
-    if (x > 0) {
-        return 1;
-    } else {
-        return 0.2;
-    }
-}
+
 
 void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *target) {
     //calculate deltas for output layer
@@ -217,7 +224,7 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
         for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
             network->layers[layer_index]->deltas->values[i][0] = output_node_cost_derivative(
                     network->layers[layer_index]->activations->values[i][0], target->values[i][0]) *
-                                                                 ReLU_derivative(
+                    ACTIVATION_FUNCTION_DERIVATIVE(
                                                                          network->layers[layer_index]->weighted_sums->values[i][0]);
         }
     } else {
@@ -232,13 +239,14 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
             }
             //multiply the sum by the derivative of the weighted sum of the current neuron
             network->layers[layer_index]->deltas->values[i][0] = sum *
-                                                                 ReLU_derivative(
+                    ACTIVATION_FUNCTION_DERIVATIVE(
                                                                          network->layers[layer_index]->weighted_sums->values[i][0]);
         }
     }
 }
 
 // add the delta weights for a layer for the current pass
+// the equation is delta_w_ij = delta_j * a_i
 void add_delta_weights_for_layer(Network *network, int layer_index) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         for (int j = 0; j < network->layers[layer_index]->input_size; j++) {
@@ -250,6 +258,7 @@ void add_delta_weights_for_layer(Network *network, int layer_index) {
 }
 
 // add the delta biases for a layer for the current pass
+// the delta biases are the same as the deltas for the layer
 void add_delta_biases_for_layer(Network *network, int layer_index) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         network->layers[layer_index]->delta_biases->values[i][0] += network->layers[layer_index]->deltas->values[i][0];
@@ -444,7 +453,7 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
             printf("success rate: %.2f%%\n", success_rate*100);
             printf("\033[0m");
             if (loss > last_loss) {
-                learning_rate *= 0.9;
+                learning_rate *= 0.96;
                 printf("learning rate: %f\n", learning_rate);
             }
             last_loss = loss;
@@ -454,7 +463,7 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
 
 //save the network configuration and the weights and biases to a file
 void save_network_to_file(Network *network) {
-    FILE *file = fopen("C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\network.txt", "w");
+    FILE *file = fopen("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt", "w");
     fprintf(file, "%d\n", network->number_of_layers);
     for (int i = 0; i < network->number_of_layers; i++) {
         fprintf(file, "%d\n", network->layers[i]->layer_size);
@@ -513,95 +522,19 @@ void use_network(Network *network, Matrix *input) {
 int main() {
     //seed the random number generator
     srand(time(NULL));
-    //interface to choose to create a new network or load a file
-//    printf("1. Create new network\n2. Load network from file\n");
-//    int choice;
-//    scanf("%d", &choice);
-//    if (choice == 1) {
-//        printf("Enter number of layers: ");
-//        int number_of_layers;
-//        scanf("%d", &number_of_layers);
-//        int *layer_sizes = malloc(sizeof(int) * number_of_layers);
-//        for (int i = 0; i < number_of_layers; i++) {
-//            printf("Enter size of layer %d: ", i);
-//            scanf("%d", &layer_sizes[i]);
-//        }
-//        Network *network = create_network(number_of_layers, layer_sizes);
-//        //ask user for training data file
-//        printf("Enter training data file name: ");
-//        char training_data_file_name[100];
-//        scanf("%s", training_data_file_name);
-//        //ask how much training data to use
-//        printf("Enter number of training data to use: ");
-//        int lenght_of_training_data;
-//        scanf("%d", &lenght_of_training_data);
-//        TrainingDataPacket **training_data = read_training_data(
-//                training_data_file_name,
-//                lenght_of_training_data);
-//        //ask for epochs
-//        printf("Enter number of epochs: ");
-//        int epochs;
-//        scanf("%d", &epochs);
-//        //ask for batch size
-//        printf("Enter batch size: ");
-//        int batch_size;
-//        scanf("%d", &batch_size);
-//        //ask for learning rate
-//        printf("Enter learning rate: ");
-//        double learning_rate;
-//        scanf("%lf", &learning_rate);
-//        //train the network
-//        train_stochastic(network, training_data, lenght_of_training_data, epochs, batch_size, learning_rate);
-//        save_network_to_file(network);
-//        return 0;
-//    } else if (choice == 2) {
-//        //ask for file name
-//        printf("Enter file name: ");
-//        char file_name[100];
-//        scanf("%s", file_name);
-//        Network *network = load_network_from_file(file_name);
-//        //get input from user
-//        Matrix *input = create_matrix(3, 1);
-//        while (1){
-//        printf("Enter 3 numbers: ");
-//        scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);
-//        use_network(network, input);
-//        print_matrix(network->layers[network->number_of_layers - 1]->activations);}
-//        free_matrix(input);
-//        return 0;
-//    }
-
-
-
 
     //create the network
     Network *network = create_network(5, (int[]) {3, 10,16, 20, 16});
+
 //    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt");
     //read the training data
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
+            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
             60000);
 
     //train the network
     //train_network(network, training_data, 60000, 2000, 1);
-    train_stochastic(network, training_data, 60000, 6000, 600, 0.1);
-    save_network_to_file(network);
-
-    //get input from user
-    Matrix *input = create_matrix(3, 1);
-    printf("Enter 3 numbers: ");
-    scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);//TODO implement this on the copy matrix function
-    propagate_forward(network, input);
-    free_matrix(input);
-
-    //print the output
-    print_matrix(network->layers[network->number_of_layers - 1]->activations);
-    //print the index of the largest value
-    printf("index of the largest value: %d\n",
-           vector_max_index(network->layers[network->number_of_layers - 1]->activations));
-
-    //free the network
-    free_network(network);
+    train_stochastic(network, training_data, 60000, 10000, 800, 0.1);
 
     // free the training data
     for (int i = 0; i < 60000; i++) {
@@ -610,16 +543,22 @@ int main() {
         free(training_data[i]);
     }
     free(training_data);
+
+    //save the network to a file
+    save_network_to_file(network);
+
+    //get input from user
+    Matrix *input = create_matrix(3, 1);
+    do {
+        printf("Enter 3 numbers: ");
+        scanf("%lf %lf %lf", &input->values[0][0], &input->values[1][0], &input->values[2][0]);
+        use_network(network, input);
+        print_matrix(network->layers[network->number_of_layers - 1]->activations);
+        printf("want to continue? (Y/n)");
+    }while (getchar()!='N'&&getchar()!='n');
+    free_matrix(input);
+    //free the network
+    free_network(network);
+
     return 0;
 }
-
-// 10 neuronów wejściowych
-// rzędy w kalawieturze
-// połówki alfabetu
-
-
-// klasyfikator kolorów
-// 3 nauronowe wejście jako rgb kolor
-// klasyfikacja na 12 kolorów
-
-//zwalniaj pamięć
