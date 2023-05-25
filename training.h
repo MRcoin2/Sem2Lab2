@@ -20,6 +20,6 @@ TrainingDataPacket *create_training_data_packet();
 // 0.4 0.5 0.6 15
 // 0.7 0.8 0.9 12
 // 0.1 0.3 0.3 14
-TrainingDataPacket **read_training_data(char file_name[], int lenght_of_training_data);
+TrainingDataPacket **read_training_data(char file_name[], int lenght_of_training_data, int packet_size);
 
 #endif //SEM2LAB2_TRAINING_H

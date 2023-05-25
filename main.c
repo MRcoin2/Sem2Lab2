@@ -524,17 +524,17 @@ int main() {
     srand(time(NULL));
 
     //create the network
-    Network *network = create_network(5, (int[]) {3, 10,16, 20, 16});
+    Network *network = create_network(4, (int[]) {784, 24,24, 10});
 
 //    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt");
     //read the training data
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
-            60000);
+            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\mnist_train.txt",
+            60000,784);
 
     //train the network
     //train_network(network, training_data, 60000, 2000, 1);
-    train_stochastic(network, training_data, 60000, 10000, 800, 0.1);
+    train_stochastic(network, training_data, 60000, 1000, 800, 0.1);
 
     // free the training data
     for (int i = 0; i < 60000; i++) {
