@@ -247,7 +247,7 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
 
 // add the delta weights for a layer for the current pass
 // the equation is delta_w_ij = delta_j * a_i
-void add_delta_weights_for_layer(Network *network, int layer_index) {
+void add_gradient_weights_for_layer(Network *network, int layer_index) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         for (int j = 0; j < network->layers[layer_index]->input_size; j++) {
             network->layers[layer_index]->delta_weights->values[i][j] +=
@@ -259,13 +259,13 @@ void add_delta_weights_for_layer(Network *network, int layer_index) {
 
 // add the delta biases for a layer for the current pass
 // the delta biases are the same as the deltas for the layer
-void add_delta_biases_for_layer(Network *network, int layer_index) {
+void add_gradient_biases_for_layer(Network *network, int layer_index) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         network->layers[layer_index]->delta_biases->values[i][0] += network->layers[layer_index]->deltas->values[i][0];
     }
 }
 
-void average_delta_weights_for_layer(Network *network, int layer_index, int length_of_training_data) {
+void average_gradient_weights_for_layer(Network *network, int layer_index, int length_of_training_data) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         for (int j = 0; j < network->layers[layer_index]->input_size; j++) {
             network->layers[layer_index]->delta_weights->values[i][j] /= length_of_training_data;
@@ -273,7 +273,7 @@ void average_delta_weights_for_layer(Network *network, int layer_index, int leng
     }
 }
 
-void average_delta_biases_for_layer(Network *network, int layer_index, int length_of_training_data) {
+void average_gradient_biases_for_layer(Network *network, int layer_index, int length_of_training_data) {
     for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
         network->layers[layer_index]->delta_biases->values[i][0] /= length_of_training_data;
     }
@@ -313,31 +313,31 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
                 calculate_deltas_for_layer(network, k, training_data[j]->target);
             }
             //calculate delta weights for output layer
-            add_delta_weights_for_layer(network, network->number_of_layers - 1);
+            add_gradient_weights_for_layer(network, network->number_of_layers - 1);
             //calculate delta weights for hidden layers
             for (int k = network->number_of_layers - 2; k >= 0; k--) {
-                add_delta_weights_for_layer(network, k);
+                add_gradient_weights_for_layer(network, k);
             }
             //calculate delta biases for output layer
-            add_delta_biases_for_layer(network, network->number_of_layers - 1);
+            add_gradient_biases_for_layer(network, network->number_of_layers - 1);
             //calculate delta biases for hidden layers
             for (int k = network->number_of_layers - 2; k >= 0; k--) {
-                add_delta_biases_for_layer(network, k);
+                add_gradient_biases_for_layer(network, k);
             }
         }
 
         //calculate the gradient for all data:
         //average delta weights for output layer
-        average_delta_weights_for_layer(network, network->number_of_layers - 1, length_of_training_data);
+        average_gradient_weights_for_layer(network, network->number_of_layers - 1, length_of_training_data);
         //average delta weights for hidden layers
         for (int k = network->number_of_layers - 2; k >= 0; k--) {
-            average_delta_weights_for_layer(network, k, length_of_training_data);
+            average_gradient_weights_for_layer(network, k, length_of_training_data);
         }
         //average delta biases for output layer
-        average_delta_biases_for_layer(network, network->number_of_layers - 1, length_of_training_data);
+        average_gradient_biases_for_layer(network, network->number_of_layers - 1, length_of_training_data);
         //average delta biases for hidden layers
         for (int k = network->number_of_layers - 2; k >= 0; k--) {
-            average_delta_biases_for_layer(network, k, length_of_training_data);
+            average_gradient_biases_for_layer(network, k, length_of_training_data);
         }
 
         //apply the gradient to the weights and biases:
@@ -383,32 +383,33 @@ void train_network_no_loss_calc(Network *network, TrainingDataPacket **training_
             for (int k = network->number_of_layers - 2; k >= 0; k--) {
                 calculate_deltas_for_layer(network, k, training_data[j]->target);
             }
-            //calculate delta weights for output layer
-            add_delta_weights_for_layer(network, network->number_of_layers - 1);
-            //calculate delta weights for hidden layers
+
+            //calculate the gradient for all data:
+            //calculate gradient weights for output layer
+            add_gradient_weights_for_layer(network, network->number_of_layers - 1);
+            //calculate gradient weights for hidden layers
             for (int k = network->number_of_layers - 2; k >= 0; k--) {
-                add_delta_weights_for_layer(network, k);
+                add_gradient_weights_for_layer(network, k);
             }
-            //calculate delta biases for output layer
-            add_delta_biases_for_layer(network, network->number_of_layers - 1);
-            //calculate delta biases for hidden layers
+            //calculate gradient biases for output layer
+            add_gradient_biases_for_layer(network, network->number_of_layers - 1);
+            //calculate gradient biases for hidden layers
             for (int k = network->number_of_layers - 2; k >= 0; k--) {
-                add_delta_biases_for_layer(network, k);
+                add_gradient_biases_for_layer(network, k);
             }
         }
 
-        //calculate the gradient for all data:
-        //average delta weights for output layer
-        average_delta_weights_for_layer(network, network->number_of_layers - 1, length_of_training_data);
-        //average delta weights for hidden layers
+        //average gradient weights for output layer
+        average_gradient_weights_for_layer(network, network->number_of_layers - 1, length_of_training_data);
+        //average gradient weights for hidden layers
         for (int k = network->number_of_layers - 2; k >= 0; k--) {
-            average_delta_weights_for_layer(network, k, length_of_training_data);
+            average_gradient_weights_for_layer(network, k, length_of_training_data);
         }
-        //average delta biases for output layer
-        average_delta_biases_for_layer(network, network->number_of_layers - 1, length_of_training_data);
-        //average delta biases for hidden layers
+        //average gradient biases for output layer
+        average_gradient_biases_for_layer(network, network->number_of_layers - 1, length_of_training_data);
+        //average gradient biases for hidden layers
         for (int k = network->number_of_layers - 2; k >= 0; k--) {
-            average_delta_biases_for_layer(network, k, length_of_training_data);
+            average_gradient_biases_for_layer(network, k, length_of_training_data);
         }
 
         //apply the gradient to the weights and biases:
