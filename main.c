@@ -11,9 +11,9 @@
 // ReLU activation function
 double ReLU(double x) {
     if (x < 0) {
-        return x*ReLU_A;
+        return x * ReLU_A;
     }
-    return x*ReLU_B;
+    return x * ReLU_B;
 };
 
 double ReLU_derivative(double x) {
@@ -215,7 +215,6 @@ double output_node_cost_derivative(double output, double target) {
 }
 
 
-
 void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *target) {
     //calculate deltas for output layer
     //the equation is delta_i = 2(a_i - y_i) * ReLU'(z_i)
@@ -224,7 +223,7 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
         for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
             network->layers[layer_index]->deltas->values[i][0] = output_node_cost_derivative(
                     network->layers[layer_index]->activations->values[i][0], target->values[i][0]) *
-                    ACTIVATION_FUNCTION_DERIVATIVE(
+                                                                 ACTIVATION_FUNCTION_DERIVATIVE(
                                                                          network->layers[layer_index]->weighted_sums->values[i][0]);
         }
     } else {
@@ -239,7 +238,7 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
             }
             //multiply the sum by the derivative of the weighted sum of the current neuron
             network->layers[layer_index]->deltas->values[i][0] = sum *
-                    ACTIVATION_FUNCTION_DERIVATIVE(
+                                                                 ACTIVATION_FUNCTION_DERIVATIVE(
                                                                          network->layers[layer_index]->weighted_sums->values[i][0]);
         }
     }
@@ -451,7 +450,7 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
             //print succes rate in green color
             printf("\033[0;32m");
-            printf("success rate: %.2f%%\n", success_rate*100);
+            printf("success rate: %.2f%%\n", success_rate * 100);
             printf("\033[0m");
             if (loss > last_loss) {
                 learning_rate *= 0.96;
@@ -514,7 +513,7 @@ Network *load_network_from_file(char file_name[]) {
 void use_network(Network *network, Matrix *input) {
     propagate_forward(network, input);
     char colors[16][25] = {"white", "gray", "black", "red", "pink", "dark red", "orange",
-                           "brown", "yellow", "green","dark green",
+                           "brown", "yellow", "green", "dark green",
                            "teal", "light blue", "blue", "dark blue", "purple"};
     printf("output: %s\n",
            colors[vector_max_index(network->layers[network->number_of_layers - 1]->activations)]);
@@ -525,19 +524,18 @@ int main() {
     srand(time(NULL));
 
     //create the network
-    Network *network = create_network(4, (int[]) {784, 24,24, 10});
+    Network *network = create_network(5, (int[]) {3,10,16,20,16});
 
 //    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt");
     //read the training data
     int length_of_training_data = 60000;
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\mnist_train.txt",
-            length_of_training_data,784, 10,255);
+            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
+            length_of_training_data, 3, 16, 1);
 
     //train the network
     //train_network(network, training_data, 60000, 2000, 1);
-    train_stochastic(network, training_data, length_of_training_data, 10000, 100, 0.1);
-
+    train_stochastic(network, training_data, length_of_training_data, 10000, 1000, 0.1);
     // free the training data
     for (int i = 0; i < length_of_training_data; i++) {
         free_matrix(training_data[i]->input);
@@ -557,7 +555,7 @@ int main() {
         use_network(network, input);
         print_matrix(network->layers[network->number_of_layers - 1]->activations);
         printf("want to continue? (Y/n)");
-    }while (getchar()!='N'&&getchar()!='n');
+    } while (getchar() != 'N' && getchar() != 'n');
     free_matrix(input);
     //free the network
     free_network(network);
