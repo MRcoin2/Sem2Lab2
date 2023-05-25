@@ -528,16 +528,17 @@ int main() {
 
 //    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt");
     //read the training data
+    int length_of_training_data = 60000;
     TrainingDataPacket **training_data = read_training_data(
             "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\mnist_train.txt",
-            60000,784);
+            length_of_training_data,784, 10,255);
 
     //train the network
     //train_network(network, training_data, 60000, 2000, 1);
-    train_stochastic(network, training_data, 60000, 1000, 800, 0.1);
+    train_stochastic(network, training_data, length_of_training_data, 10000, 100, 0.1);
 
     // free the training data
-    for (int i = 0; i < 60000; i++) {
+    for (int i = 0; i < length_of_training_data; i++) {
         free_matrix(training_data[i]->input);
         free_matrix(training_data[i]->target);
         free(training_data[i]);
