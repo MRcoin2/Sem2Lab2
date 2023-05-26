@@ -149,7 +149,8 @@ ____________________________________________________
 ```
 ## Interakcja z siecią
 W celu łatwiejszej interakcji z siecią napisano program ./color_picker.py
-![image](https://github.com/MRcoin2/neural-net-in-C/assets/47926022/0ca740aa-828c-4912-9274-25d15f8c375f)
+
+<img src="https://github.com/MRcoin2/neural-net-in-C/assets/47926022/0ca740aa-828c-4912-9274-25d15f8c375f" height="400">
 
 Przykładowy output sieci:
 ```console
