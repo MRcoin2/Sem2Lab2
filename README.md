@@ -5,8 +5,8 @@ sieć została wytrenowana na wygenerowanym przeze mnie datasecie i kategoryzuje
 ## Generowane danych treningowych
 Do generowania danych treningowych wykorzystane zostały manulanie skategoryzowane przeze mnie kolory:
 
-<img src="https://github.com/MRcoin2/Sem2Lab2/assets/47926022/c9078317-20fd-469c-8112-5433da5e8d97" height="400">
-<img src="https://github.com/MRcoin2/Sem2Lab2/assets/47926022/dac069d8-ecee-4fce-b548-05f447d5dc62" height="400">
+<img src="https://github.com/MRcoin2/neural-net-in-C/assets/47926022/c9078317-20fd-469c-8112-5433da5e8d97" height="400">
+<img src="https://github.com/MRcoin2/neural-net-in-C/assets/47926022/dac069d8-ecee-4fce-b548-05f447d5dc62" height="400">
 
 Kolory były wybierane za pomocą **./.../human_chosen_lab.py** następnie aby wygenerować więcej danych wyliczana była odległość eukliesowa wylosowanego koloru do kolorów manualnie skategoryzowanych i przypisywana mu była nazwa najbliższego koloru.
 ```Python
@@ -20,7 +20,7 @@ def assign_category():
     save_category(random_color, category)
 ```
 Skutkowało to wygenerowaniem dobrej jakości danych do zadanego problemu ze względu na reprezentację kolorów w przestrzeni CIELab która dobrze odwzorowuje bliskość kolorów dla ludzkiego oka.
-<img src="https://github.com/MRcoin2/Sem2Lab2/assets/47926022/8d9a2e6c-d8c7-44db-9551-709f4846e5bf" height="400">
+<img src="https://github.com/MRcoin2/neural-net-in-C/assets/47926022/8d9a2e6c-d8c7-44db-9551-709f4846e5bf" height="400">
 
 ### Struktura danych treningowych:
 | L [value/100]      | a [value/128]        | b [value/128]       | Category index |
@@ -34,7 +34,7 @@ Skutkowało to wygenerowaniem dobrej jakości danych do zadanego problemu ze wzg
 Ostatecznie dane miały 60 000 wierszy.
 
 ## Struktura sieci
-![nn (2)](https://github.com/MRcoin2/Sem2Lab2/assets/47926022/8b9d5fb3-f3f9-4864-bfe7-1d72b3fe1c43)
+![nn (2)](https://github.com/MRcoin2/neural-net-in-C/assets/47926022/8b9d5fb3-f3f9-4864-bfe7-1d72b3fe1c43)
 Wybrano sieć o strukturze (3,5,10,20,16)
 
 W sieci została użyta funkcja aktywacyjna Leaky ReLU z współczynnikami 0.1 [x<0] i 1 [x>=0]:
