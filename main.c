@@ -17,7 +17,7 @@ double ReLU(double x) {
 };
 
 double ReLU_derivative(double x) {
-    if (x > 0) {
+    if (x >= 0) {
         return ReLU_B;
     } else {
         return ReLU_A;
@@ -305,51 +305,36 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
         for (int j = 0; j < length_of_training_data; j++) {
             //propagate forward
             propagate_forward(network, training_data[j]->input);
-            //calculate deltas for output layer
-            calculate_deltas_for_layer(network, network->number_of_layers - 1, training_data[j]->target);
-            //calculate deltas for hidden layers
-            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            //calculate deltas for all layers
+            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 calculate_deltas_for_layer(network, k, training_data[j]->target);
             }
-            //calculate delta weights for output layer
-            add_gradient_weights_for_layer(network, network->number_of_layers - 1);
-            //calculate delta weights for hidden layers
-            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            //calculate gradient weights for all layers
+            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 add_gradient_weights_for_layer(network, k);
             }
-            //calculate delta biases for output layer
-            add_gradient_biases_for_layer(network, network->number_of_layers - 1);
-            //calculate delta biases for hidden layers
-            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            //calculate gradient biases for all layers
+            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 add_gradient_biases_for_layer(network, k);
             }
         }
 
-        //calculate the gradient for all data:
-        //average delta weights for output layer
-        average_gradient_weights_for_layer(network, network->number_of_layers - 1, length_of_training_data);
-        //average delta weights for hidden layers
-        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+        //average gradient weights for all layers
+        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             average_gradient_weights_for_layer(network, k, length_of_training_data);
         }
-        //average delta biases for output layer
-        average_gradient_biases_for_layer(network, network->number_of_layers - 1, length_of_training_data);
-        //average delta biases for hidden layers
-        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+        //average gradient biases for all layers
+        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             average_gradient_biases_for_layer(network, k, length_of_training_data);
         }
 
         //apply the gradient to the weights and biases:
-        //update weights for output layer
-        update_weights_for_layer(network, network->number_of_layers - 1, learning_rate);
-        //update weights for hidden layers
-        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+        //update weights for all layers
+        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             update_weights_for_layer(network, k, learning_rate);
         }
-        //update biases for output layer
-        update_biases_for_layer(network, network->number_of_layers - 1, learning_rate);
-        //update biases for hidden layers
-        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+        //update biases for all layers
+        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             update_biases_for_layer(network, k, learning_rate);
         }
 
@@ -376,58 +361,42 @@ void train_network_no_loss_calc(Network *network, TrainingDataPacket **training_
         for (int j = 0; j < length_of_training_data; j++) {
             //propagate forward
             propagate_forward(network, training_data[j]->input);
-            //calculate deltas for output layer
-            calculate_deltas_for_layer(network, network->number_of_layers - 1, training_data[j]->target);
-            //calculate deltas for hidden layers
-            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            //calculate deltas for all layers
+            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 calculate_deltas_for_layer(network, k, training_data[j]->target);
             }
-
-            //calculate the gradient for all data:
-            //calculate gradient weights for output layer
-            add_gradient_weights_for_layer(network, network->number_of_layers - 1);
-            //calculate gradient weights for hidden layers
-            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            //calculate gradient weights for all layers
+            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 add_gradient_weights_for_layer(network, k);
             }
-            //calculate gradient biases for output layer
-            add_gradient_biases_for_layer(network, network->number_of_layers - 1);
-            //calculate gradient biases for hidden layers
-            for (int k = network->number_of_layers - 2; k >= 0; k--) {
+            //calculate gradient biases for all layers
+            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 add_gradient_biases_for_layer(network, k);
             }
         }
 
-        //average gradient weights for output layer
-        average_gradient_weights_for_layer(network, network->number_of_layers - 1, length_of_training_data);
-        //average gradient weights for hidden layers
-        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+        //average gradient weights for all layers
+        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             average_gradient_weights_for_layer(network, k, length_of_training_data);
         }
-        //average gradient biases for output layer
-        average_gradient_biases_for_layer(network, network->number_of_layers - 1, length_of_training_data);
-        //average gradient biases for hidden layers
-        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+        //average gradient biases for all layers
+        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             average_gradient_biases_for_layer(network, k, length_of_training_data);
         }
 
         //apply the gradient to the weights and biases:
-        //update weights for output layer
-        update_weights_for_layer(network, network->number_of_layers - 1, learning_rate);
-        //update weights for hidden layers
-        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+        //update weights for all layers
+        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             update_weights_for_layer(network, k, learning_rate);
         }
-        //update biases for output layer
-        update_biases_for_layer(network, network->number_of_layers - 1, learning_rate);
-        //update biases for hidden layers
-        for (int k = network->number_of_layers - 2; k >= 0; k--) {
+        //update biases for all layers
+        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             update_biases_for_layer(network, k, learning_rate);
         }
     }
 }
 
-//split the training data into 200 element packets randomly and train on that
+//split the training data into packets randomly and train on that
 void train_stochastic(Network *network, TrainingDataPacket **training_data, int length_of_training_data, int epochs,
                       int split_size,
                       double learning_rate) {
@@ -524,13 +493,13 @@ int main() {
     srand(time(NULL));
 
     //create the network
-    Network *network = create_network(5, (int[]) {3,10,16,20,16});
+//    Network *network = create_network(5, (int[]) {3,10,16,20,16});
 
-//    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt");
+    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network_90.02acc_lab.txt");
     //read the training data
     int length_of_training_data = 60000;
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_lab_v2.txt",
+            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_lab.txt",
             length_of_training_data, 3, 16, 1);
 
     //train the network
