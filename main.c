@@ -103,7 +103,6 @@ Network *create_network(int number_of_layers, int *layer_sizes) {
 //        randomize_matrix(network->layers[i]->biases);
         fill_matrix(network->layers[i]->biases, 0.0);
     }
-
     return network;
 }
 
@@ -217,14 +216,12 @@ double output_node_cost_derivative(double output, double target) {
 
 void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *target) {
     //calculate deltas for output layer
-    //the equation is delta_i = 2(a_i - y_i) * ReLU'(z_i)
+    //for softmax the equation is delta_i = a_i - y_i
     if (layer_index == network->number_of_layers - 1) {
         //calculate deltas for each neuron in the output layer
         for (int i = 0; i < network->layers[layer_index]->layer_size; i++) {
             network->layers[layer_index]->deltas->values[i][0] = output_node_cost_derivative(
-                    network->layers[layer_index]->activations->values[i][0], target->values[i][0]) *
-                                                                 ACTIVATION_FUNCTION_DERIVATIVE(
-                                                                         network->layers[layer_index]->weighted_sums->values[i][0]);
+                    network->layers[layer_index]->activations->values[i][0], target->values[i][0]);
         }
     } else {
         //calculate deltas for each neuron in the hidden layer
@@ -238,7 +235,7 @@ void calculate_deltas_for_layer(Network *network, int layer_index, Matrix *targe
             }
             //multiply the sum by the derivative of the weighted sum of the current neuron
             network->layers[layer_index]->deltas->values[i][0] = sum *
-                                                                 ACTIVATION_FUNCTION_DERIVATIVE(
+                    ACTIVATION_FUNCTION_DERIVATIVE(
                                                                          network->layers[layer_index]->weighted_sums->values[i][0]);
         }
     }
@@ -305,36 +302,25 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
         for (int j = 0; j < length_of_training_data; j++) {
             //propagate forward
             propagate_forward(network, training_data[j]->input);
-            //calculate deltas for all layers
-            for (int k = network->number_of_layers - 1; k >= 0; k--) {
+            //calculate deltas for all layers (deltas being the error that is propagated backward)
+            for (int k = network->number_of_layers-1; k >= 0; k--) {
                 calculate_deltas_for_layer(network, k, training_data[j]->target);
-            }
-            //calculate gradient weights for all layers
-            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 add_gradient_weights_for_layer(network, k);
-            }
-            //calculate gradient biases for all layers
-            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 add_gradient_biases_for_layer(network, k);
             }
         }
 
-        //average gradient weights for all layers
-        for (int k = network->number_of_layers - 1; k >= 0; k--) {
+        //calculate the gradient for all data:
+        //average delta weights and biases for all layers
+        for (int k = network->number_of_layers-1; k >= 0; k--) {
             average_gradient_weights_for_layer(network, k, length_of_training_data);
-        }
-        //average gradient biases for all layers
-        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             average_gradient_biases_for_layer(network, k, length_of_training_data);
         }
 
         //apply the gradient to the weights and biases:
-        //update weights for all layers
-        for (int k = network->number_of_layers - 1; k >= 0; k--) {
+        //update weights and biases for all layers
+        for (int k = network->number_of_layers-1; k >= 0; k--) {
             update_weights_for_layer(network, k, learning_rate);
-        }
-        //update biases for all layers
-        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             update_biases_for_layer(network, k, learning_rate);
         }
 
@@ -345,7 +331,7 @@ void train_network(Network *network, TrainingDataPacket **training_data, int len
             double success_rate = calculate_average_success_rate(network, training_data, length_of_training_data);
             printf("success rate: %f\n", success_rate);
             if (loss > last_loss) {
-                learning_rate *= 0.8;
+                learning_rate *= 0.96;
                 printf("learning rate: %f\n", learning_rate);
             }
             last_loss = loss;
@@ -361,36 +347,25 @@ void train_network_no_loss_calc(Network *network, TrainingDataPacket **training_
         for (int j = 0; j < length_of_training_data; j++) {
             //propagate forward
             propagate_forward(network, training_data[j]->input);
-            //calculate deltas for all layers
-            for (int k = network->number_of_layers - 1; k >= 0; k--) {
+            //calculate deltas for all layers (deltas being the error that is propagated backward)
+            for (int k = network->number_of_layers-1; k >= 0; k--) {
                 calculate_deltas_for_layer(network, k, training_data[j]->target);
-            }
-            //calculate gradient weights for all layers
-            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 add_gradient_weights_for_layer(network, k);
-            }
-            //calculate gradient biases for all layers
-            for (int k = network->number_of_layers - 1; k >= 0; k--) {
                 add_gradient_biases_for_layer(network, k);
             }
         }
 
-        //average gradient weights for all layers
-        for (int k = network->number_of_layers - 1; k >= 0; k--) {
+        //calculate the gradient for all data:
+        //average delta weights and biases for all layers
+        for (int k = network->number_of_layers-1; k >= 0; k--) {
             average_gradient_weights_for_layer(network, k, length_of_training_data);
-        }
-        //average gradient biases for all layers
-        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             average_gradient_biases_for_layer(network, k, length_of_training_data);
         }
 
         //apply the gradient to the weights and biases:
-        //update weights for all layers
-        for (int k = network->number_of_layers - 1; k >= 0; k--) {
+        //update weights and biases for all layers
+        for (int k = network->number_of_layers-1; k >= 0; k--) {
             update_weights_for_layer(network, k, learning_rate);
-        }
-        //update biases for all layers
-        for (int k = network->number_of_layers - 1; k >= 0; k--) {
             update_biases_for_layer(network, k, learning_rate);
         }
     }
@@ -432,7 +407,7 @@ void train_stochastic(Network *network, TrainingDataPacket **training_data, int 
 
 //save the network configuration and the weights and biases to a file
 void save_network_to_file(Network *network) {
-    FILE *file = fopen("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network.txt", "w");
+    FILE *file = fopen("C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\network.txt", "w");
     fprintf(file, "%d\n", network->number_of_layers);
     for (int i = 0; i < network->number_of_layers; i++) {
         fprintf(file, "%d\n", network->layers[i]->layer_size);
@@ -493,13 +468,13 @@ int main() {
     srand(time(NULL));
 
     //create the network
-//    Network *network = create_network(5, (int[]) {3,10,16,20,16});
+    Network *network = create_network(5, (int[]) {3,10,16,20,16});
 
-    Network *network = load_network_from_file("C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\network_90.02acc_lab.txt");
+    //Network *network = load_network_from_file("C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\network_90.02acc_lab.txt");
     //read the training data
     int length_of_training_data = 60000;
     TrainingDataPacket **training_data = read_training_data(
-            "C:\\Users\\szymc\\CLionProjects\\Sem2Lab2\\training_lab.txt",
+            "C:\\Users\\Szymon\\CLionProjects\\Sem2Lab2\\training_lab.txt",
             length_of_training_data, 3, 16, 1);
 
     //train the network
